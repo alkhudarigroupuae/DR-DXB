@@ -992,7 +992,8 @@
 
         function loadSettings() {
             const sk = localStorage.getItem('syriaPay_sk') || "";
-            const pk = localStorage.getItem('syriaPay_pk') || "";
+            // Default PK provided by user
+            const pk = localStorage.getItem('syriaPay_pk') || "pk_live_51Nul4FJUH1hX9BktTE3cFdBcKpdRGj5iam3kD0KxuM5bdLNzfHvtr159UiWnVkfC2GSCgzaZlswPDS0DDx8LqZLH0094m87gda";
             const paypal = localStorage.getItem('syriaPay_paypal') || "";
             const mastercard = localStorage.getItem('syriaPay_mastercard') || "";
             const acc = localStorage.getItem('syriaPay_acc') || "";
