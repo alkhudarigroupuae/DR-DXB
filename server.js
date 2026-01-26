@@ -14,12 +14,17 @@ app.use(express.static(path.join(__dirname, 'web_card_app')));
 
 // Route to check card
 app.post('/api/check-card', async (req, res) => {
-    const { cardNumber, expMonth, expYear, cvv, secretKey } = req.body;
+    let { cardNumber, expMonth, expYear, cvv, secretKey } = req.body;
+
+    // Use environment variable if secretKey is not provided
+    if (!secretKey) {
+        secretKey = process.env.STRIPE_SECRET_KEY;
+    }
 
     if (!secretKey || !secretKey.startsWith('sk_')) {
         return res.status(400).json({
             success: false,
-            message: "Invalid or missing Stripe Secret Key. Please configure it in Settings."
+            message: "Invalid or missing Stripe Secret Key. Please configure it in Settings or Server Env."
         });
     }
 

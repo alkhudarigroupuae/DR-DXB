@@ -623,7 +623,8 @@
                     <span id="led-stripe" class="status-led" title="Unknown Status"></span>
                 </label>
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="skInput" placeholder="sk_live_..." style="font-family: monospace; flex: 1;">
+                    <input type="password" id="skInput" placeholder="sk_live_..."
+                        style="font-family: monospace; flex: 1;">
                     <button class="action-btn" style="width: auto; padding: 10px;" onclick="verifyStripeKey()"
                         data-i18n="btn_check_key">Check</button>
                 </div>
@@ -635,7 +636,8 @@
                     <span id="led-stripe-pk" class="status-led" title="Unknown Status"></span>
                 </label>
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="pkInput" placeholder="pk_live_..." style="font-family: monospace; flex: 1;">
+                    <input type="password" id="pkInput" placeholder="pk_live_..."
+                        style="font-family: monospace; flex: 1;">
                     <button class="action-btn" style="width: auto; padding: 10px;" onclick="verifyPublishableKey()"
                         data-i18n="btn_check_key">Check</button>
                 </div>
@@ -649,7 +651,7 @@
                     <span id="led-paypal" class="status-led" title="Unknown Status"></span>
                 </label>
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="paypalInput" placeholder="client_id:secret"
+                    <input type="password" id="paypalInput" placeholder="client_id:secret"
                         style="font-family: monospace; flex: 1;">
                     <button class="action-btn" style="width: auto; padding: 10px;" onclick="verifyGenericKey('paypal')"
                         data-i18n="btn_check_key">Check</button>
@@ -662,7 +664,7 @@
                     <span id="led-mastercard" class="status-led" title="Unknown Status"></span>
                 </label>
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="mastercardInput" placeholder="MasterCard API Key"
+                    <input type="password" id="mastercardInput" placeholder="MasterCard API Key"
                         style="font-family: monospace; flex: 1;">
                     <button class="action-btn" style="width: auto; padding: 10px;"
                         onclick="verifyGenericKey('mastercard')" data-i18n="btn_check_key">Check</button>
