@@ -277,7 +277,7 @@
 
         th,
         td {
-            text-align: left;
+            text-align: start;
             padding: 12px;
             border-bottom: 1px solid var(--border);
         }
@@ -304,6 +304,38 @@
 
         ::-webkit-scrollbar-thumb:hover {
             background: var(--primary);
+        }
+
+        /* RTL Support */
+        [dir="rtl"] .status-led,
+        [dir="rtl"] .card-brand-icon {
+            margin-left: 0;
+            margin-right: 10px;
+        }
+
+        [dir="rtl"] .luhn-badge {
+            margin-left: 0;
+            margin-right: 4ch;
+        }
+
+        [dir="rtl"] input[type="checkbox"] {
+            margin-right: 0;
+            margin-left: 12px;
+        }
+
+        [dir="rtl"] .lang-selector {
+            right: auto;
+            left: 20px;
+        }
+
+        [dir="rtl"] .header .signature {
+            right: auto;
+            left: 15px;
+        }
+
+        [dir="rtl"] .tab-btn {
+            font-family: 'Segoe UI', sans-serif;
+            /* Better Arabic font fallback */
         }
     </style>
 </head>
