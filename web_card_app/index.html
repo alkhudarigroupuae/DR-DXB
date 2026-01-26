@@ -267,6 +267,7 @@
             margin-left: 4ch;
             letter-spacing: 0.05em;
             text-transform: uppercase;
+            white-space: nowrap;
         }
 
         table {
@@ -306,11 +307,42 @@
             background: var(--primary);
         }
 
+        /* Input with Icon Styling */
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-with-icon input {
+            padding-right: 50px;
+            /* Space for icon in LTR */
+        }
+
+        .input-with-icon .card-brand-icon {
+            position: absolute;
+            top: 50%;
+            right: 15px;
+            transform: translateY(-50%);
+            margin: 0;
+            pointer-events: none;
+        }
+
         /* RTL Support */
-        [dir="rtl"] .status-led,
-        [dir="rtl"] .card-brand-icon {
+        [dir="rtl"] .status-led {
             margin-left: 0;
             margin-right: 10px;
+        }
+
+        [dir="rtl"] .input-with-icon input {
+            padding-right: 10px;
+            /* Reset LTR padding */
+            padding-left: 50px;
+            /* Space for icon in RTL */
+        }
+
+        [dir="rtl"] .input-with-icon .card-brand-icon {
+            right: auto;
+            left: 15px;
+            margin: 0;
         }
 
         [dir="rtl"] .luhn-badge {
@@ -366,11 +398,10 @@
         <div id="tab1" class="tab-content active">
             <div class="form-group">
                 <label data-i18n="label_bin">BIN / First Digits (6-12 digits)</label>
-                <div style="position: relative;">
+                <div class="input-with-icon">
                     <input type="text" id="binInput" value="424242" placeholder="Enter first 6-12 digits"
                         data-i18n-placeholder="placeholder_bin" oninput="detectBrand(this.value)">
-                    <span id="brandIcon" class="card-brand-icon"
-                        style="position: absolute; right: 10px; top: 8px;"></span>
+                    <span id="brandIcon" class="card-brand-icon"></span>
                 </div>
             </div>
 
