@@ -378,9 +378,11 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            width: 120px;
+            width: 100px;
+            /* Reduced width */
             z-index: 100;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
+            /* Reduced font size */
             user-select: none;
         }
 
@@ -393,9 +395,10 @@
             background: #111;
             color: var(--text);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            /* Matches App Radius */
-            padding: 8px 12px;
+            border-radius: 10px;
+            /* Slightly smaller radius */
+            padding: 6px 10px;
+            /* Reduced padding */
             cursor: pointer;
             display: flex;
             justify-content: space-between;
@@ -415,8 +418,8 @@
             right: 0;
             background: #111;
             border: 1px solid var(--border);
-            border-radius: 12px;
-            /* Rounded Dropdown Window */
+            border-radius: 10px;
+            /* Match trigger radius */
             overflow: hidden;
             display: none;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
@@ -430,7 +433,8 @@
         }
 
         .custom-option {
-            padding: 10px 12px;
+            padding: 8px 10px;
+            /* Reduced padding */
             cursor: pointer;
             transition: background 0.2s;
             text-align: center;
