@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "description": "Root entry for Render deployment",
   "scripts": {
-    "start": "cd web_card_app && node server.js",
-    "install-client": "cd web_card_app && npm install",
-    "build": "npm run install-client"
+    "start": "node server.js"
   },
   "engines": {
     "node": ">=14.x"

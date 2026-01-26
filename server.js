@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 8081;
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(path.join(__dirname, 'web_card_app')));
 
 // Route to check card
 app.post('/api/check-card', async (req, res) => {
