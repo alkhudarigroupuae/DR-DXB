@@ -2,7 +2,7 @@ services:
   - type: web
     name: debit-card-generator
     env: node
-    rootDir: web_card_app
+    rootDir: .
     buildCommand: npm install
     startCommand: npm start
     envVars:
