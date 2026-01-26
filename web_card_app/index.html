@@ -70,7 +70,8 @@
             position: absolute;
             top: 20px;
             right: 20px;
-            padding: 5px;
+            padding: 5px 5px 5px 15px;
+            /* Shift text right by ~10px */
             background: #111;
             color: var(--text);
             border: 1px solid var(--border);
@@ -358,6 +359,8 @@
         [dir="rtl"] .lang-selector {
             right: auto;
             left: 20px;
+            padding: 5px 15px 5px 5px;
+            /* Mirror padding for RTL */
         }
 
         [dir="rtl"] .header .signature {
