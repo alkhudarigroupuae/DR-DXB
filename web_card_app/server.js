@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 const path = require('path');
 
 const app = express();
-const PORT = 8081;
+const PORT = process.env.PORT || 8081;
 
 // Middleware
 app.use(cors());

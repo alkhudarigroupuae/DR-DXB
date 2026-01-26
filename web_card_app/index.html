@@ -1087,7 +1087,7 @@
                     // Token created successfully -> Live
                     showToast('Key is Live & Valid!', 'success');
                     led.className = 'status-led active';
-                    localStorage.setItem('syriaPay_stripe_pk', pk);
+                    localStorage.setItem('syriaPay_pk', pk);
                 } else {
                     // Check error type
                     // If error is "card_declined" (402), the key IS VALID because it reached the bank/processor
@@ -1096,7 +1096,7 @@
                     if (data.error && data.error.code === 'card_declined') {
                         showToast('Key is Live! (Card Declined)', 'success');
                         led.className = 'status-led active';
-                        localStorage.setItem('syriaPay_stripe_pk', pk);
+                        localStorage.setItem('syriaPay_pk', pk);
                     } else if (response.status === 401 || (data.error && data.error.message.includes('Invalid API Key'))) {
                         showToast('Invalid API Key', 'error');
                         led.className = 'status-led error';
@@ -1105,7 +1105,7 @@
                         // e.g. "parameter_missing"
                         showToast('Key is Valid (Error: ' + data.error.message + ')', 'success');
                         led.className = 'status-led active';
-                        localStorage.setItem('syriaPay_stripe_pk', pk);
+                        localStorage.setItem('syriaPay_pk', pk);
                     }
                 }
 
@@ -1137,15 +1137,17 @@
                 if (result.success) {
                     led.className = 'status-led active';
                     led.title = result.message + '\n' + result.details;
-                    alert("Stripe Key is Live: " + result.details);
+                    showToast("Stripe Key is Live: " + result.details, 'success');
+                    localStorage.setItem('syriaPay_sk', sk);
                 } else {
                     led.className = 'status-led error';
                     led.title = result.message;
-                    alert("Stripe Error: " + result.message);
+                    showToast("Stripe Error: " + result.message, 'error');
                 }
             } catch (e) {
                 led.className = 'status-led error';
                 led.title = "Network Error";
+                showToast("Network Error", 'error');
             }
         }
 
