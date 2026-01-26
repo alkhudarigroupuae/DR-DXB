@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debit Card Generator</title>
+    <style>
+        :root {
+            --primary: #D4AF37;
+            --primary-dark: #B4941F;
+            --bg: #000000;
+            --surface: #111111;
+            --text: #E0E0E0;
+            --text-light: #A0A0A0;
+            --border: #333333;
+            --success: #10b981;
+            --danger: #ef4444;
+            --input-bg: #1a1a1a;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--surface);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+            color: var(--primary);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid var(--primary);
+            position: relative;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .header .signature {
+            position: absolute;
+            bottom: 5px;
+            right: 15px;
+            font-size: 0.7rem;
+            font-weight: 400;
+            opacity: 0.8;
+            letter-spacing: 0.5px;
+            color: var(--text-light);
+        }
+
+        .lang-selector {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 5px;
+            background: #111;
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            background: #0a0a0a;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-light);
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            background: #1a1a1a;
+            color: var(--primary);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+            background: linear-gradient(to top, rgba(212, 175, 55, 0.1), transparent);
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--primary);
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            background-color: var(--input-bg);
+            color: var(--text);
+            outline: none;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+        }
+
+        input[type="checkbox"] {
+            accent-color: var(--primary);
+            width: 18px;
+            height: 18px;
+            margin-right: 12px;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+
+        button.action-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: 700;
+            transition: transform 0.1s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button.action-btn:hover {
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+            transform: translateY(-1px);
+        }
+
+        button.action-btn:active {
+            transform: translateY(1px);
+        }
+
+        .output-area {
+            background: #000;
+            color: var(--primary);
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            border: 1px solid var(--border);
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            border-bottom: 1px solid #222;
+            padding-bottom: 2px;
+        }
+
+        .status-led {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #333;
+            /* Default gray/off */
+            margin-left: 10px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .status-led.active {
+            background-color: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .status-led.error {
+            background-color: var(--danger);
+            box-shadow: 0 0 8px var(--danger);
+        }
+
+        .card-brand-icon {
+            display: inline-block;
+            margin-left: 10px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--text-light);
+        }
+
+        .card-brand-icon.visa {
+            color: #4287f5;
+        }
+
+        .card-brand-icon.mastercard {
+            color: #eb001b;
+        }
+
+        .card-brand-icon.amex {
+            color: #007bc1;
+        }
+
+        .card-brand-icon.discover {
+            color: #f9a021;
+        }
+
+        .log-live {
+            color: #4ade80;
+            font-weight: bold;
+        }
+
+        .log-die {
+            color: #f87171;
+        }
+
+        .luhn-badge {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            margin-left: 4ch;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background-color: #1a1a1a;
+            color: var(--primary);
+            border-bottom: 2px solid var(--border);
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-container">
+        <div class="header">
+            <h1 data-i18n="title">Debit Card Generator</h1>
+            <div class="signature" data-i18n="signature">By DRDXB</div>
+            <select class="lang-selector" id="langSelector" onchange="changeLanguage(this.value)">
+                <option value="en">English</option>
+                <option value="ar">العربية</option>
+                <option value="zh">中文</option>
+                <option value="tr">Türkçe</option>
+                <option value="ru">Русский</option>
+            </select>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('tab1')" data-i18n="tab_gen">Generation</button>
+            <button class="tab-btn" onclick="switchTab('tab2')" data-i18n="tab_active">Active Cards</button>
+            <button class="tab-btn" onclick="switchTab('tab3')" data-i18n="tab_check">Checker</button>
+            <button class="tab-btn" onclick="switchTab('tab4')" data-i18n="tab_settings">Settings</button>
+        </div>
+
+        <!-- Tab 1: Generation -->
+        <div id="tab1" class="tab-content active">
+            <div class="form-group">
+                <label data-i18n="label_bin">BIN / First Digits (6-12 digits)</label>
+                <div style="position: relative;">
+                    <input type="text" id="binInput" value="424242" placeholder="Enter first 6-12 digits"
+                        data-i18n-placeholder="placeholder_bin" oninput="detectBrand(this.value)">
+                    <span id="brandIcon" class="card-brand-icon"
+                        style="position: absolute; right: 10px; top: 8px;"></span>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex: 1;">
+                    <label data-i18n="label_month">Month (MM)</label>
+                    <select id="monthInput">
+                        <option value="rnd" data-i18n="val_random">Random</option>
+                        <option value="01">01</option>
+                        <option value="02">02</option>
+                        <option value="03">03</option>
+                        <option value="04">04</option>
+                        <option value="05">05</option>
+                        <option value="06">06</option>
+                        <option value="07">07</option>
+                        <option value="08">08</option>
+                        <option value="09">09</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label data-i18n="label_year">Year (YY)</label>
+                    <select id="yearInput">
+                        <option value="rnd" data-i18n="val_random">Random</option>
+                        <option value="26">2026</option>
+                        <option value="27">2027</option>
+                        <option value="28">2028</option>
+                        <option value="29">2029</option>
+                        <option value="30">2030</option>
+                        <option value="31">2031</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label data-i18n="label_cvv">CVV (Optional)</label>
+                    <input type="text" id="cvvInput" placeholder="Random if empty"
+                        data-i18n-placeholder="placeholder_cvv" maxlength="4">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="label_qty">Quantity</label>
+                <input type="number" id="qtyInput" value="10">
+            </div>
+            <button class="action-btn" onclick="generateCards()" data-i18n="btn_generate">Generate Cards</button>
+
+            <div id="selectionControls"
+                style="display: none; margin-top: 15px; gap: 10px; align-items: center; background: #111; padding: 10px; border-radius: 6px; border: 1px solid #333;">
+                <label style="margin:0; display:flex; align-items:center; cursor:pointer; color: var(--text);">
+                    <input type="checkbox" id="selectAllBox" onchange="toggleSelectAll()"> <span
+                        data-i18n="checkbox_select_all">Select All</span>
+                </label>
+                <button class="action-btn" style="width: auto; padding: 8px 15px; font-size: 0.9rem; margin-left: auto;"
+                    onclick="sendSelectedToChecker()" data-i18n="btn_send_check">
+                    Send to Checker ➔
+                </button>
+            </div>
+
+            <div id="genOutputFormatted" class="output-area" style="white-space: normal;"></div>
+        </div>
+
+        <!-- Tab 2: Active Cards Simulation -->
+        <div id="tab2" class="tab-content">
+            <button class="action-btn" onclick="loadActiveCards()" data-i18n="btn_load_active">Load Active Cards (API
+                Mock)</button>
+            <table id="activeTable">
+                <thead>
+                    <tr>
+                        <th data-i18n="th_card">Card Number</th>
+                        <th data-i18n="th_exp">Expiry</th>
+                        <th data-i18n="th_cvv">CVV</th>
+                        <th data-i18n="th_status">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Rows will be added here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Tab 3: Checker (Real Stripe API) -->
+        <div id="tab3" class="tab-content">
+            <div class="form-group">
+                <label data-i18n="label_sk_active">Stripe Secret Key (Active Configuration)</label>
+                <input type="text" value="Not Configured" readonly
+                    style="background: #f1f5f9; color: #64748b; font-weight: bold;">
+            </div>
+            <div class="form-group">
+                <label data-i18n="label_input_list">Input List (Card|Exp|CVV)</label>
+                <textarea id="checkInput" rows="5" placeholder="Paste your list here..."
+                    data-i18n-placeholder="placeholder_list"></textarea>
+            </div>
+            <button class="action-btn" onclick="startChecker()" data-i18n="btn_start_check">Start Live Stripe
+                Check</button>
+
+            <div id="checkLog" class="output-area"></div>
+        </div>
+
+        <!-- Tab 4: Settings -->
+        <div id="tab4" class="tab-content">
+            <div
+                style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--primary);">
+                <h3 style="margin-top:0; color: var(--primary);" data-i18n="header_config">Configuration</h3>
+                <p style="margin-bottom:0; color: var(--text-light); font-size: 0.9rem;" data-i18n="text_config_desc">
+                    Manage your API keys and
+                    account settings here. These are saved locally.</p>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <span data-i18n="label_sk">Stripe Secret Key (sk_live_...)</span>
+                    <span id="led-stripe" class="status-led" title="Unknown Status"></span>
+                </label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="skInput" placeholder="sk_live_..." style="font-family: monospace; flex: 1;">
+                    <button class="action-btn" style="width: auto; padding: 10px;" onclick="verifyStripeKey()"
+                        data-i18n="btn_check_key">Check</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="label_pk">Stripe Publishable Key (pk_live_...)</label>
+                <input type="text" id="pkInput" placeholder="pk_live_..." style="font-family: monospace;">
+            </div>
+
+            <hr style="border-color: #333; margin: 20px 0;">
+
+            <div class="form-group">
+                <label>
+                    <span data-i18n="label_paypal">PayPal API (Client ID:Secret)</span>
+                    <span id="led-paypal" class="status-led" title="Unknown Status"></span>
+                </label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="paypalInput" placeholder="client_id:secret"
+                        style="font-family: monospace; flex: 1;">
+                    <button class="action-btn" style="width: auto; padding: 10px;" onclick="verifyGenericKey('paypal')"
+                        data-i18n="btn_check_key">Check</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <span data-i18n="label_mastercard">MasterCard API Key</span>
+                    <span id="led-mastercard" class="status-led" title="Unknown Status"></span>
+                </label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="mastercardInput" placeholder="MasterCard API Key"
+                        style="font-family: monospace; flex: 1;">
+                    <button class="action-btn" style="width: auto; padding: 10px;"
+                        onclick="verifyGenericKey('mastercard')" data-i18n="btn_check_key">Check</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="label_accounts">Accounts / Proxies List (Optional)</label>
+                <textarea id="accountsInput" rows="5" placeholder="Format: user:pass@ip:port or specific account IDs..."
+                    data-i18n-placeholder="placeholder_accounts"></textarea>
+            </div>
+
+            <button class="action-btn" onclick="saveSettings()" data-i18n="btn_save">Save Configuration</button>
+            <p id="saveMsg" style="text-align: center; margin-top: 10px; font-weight: 600; min-height: 24px;"></p>
+        </div>
+    </div>
+
+    <script>
+        // === Logic: Internationalization (i18n) ===
+        const translations = {
+            en: {
+                title: "Debit Card Generator",
+                signature: "By DRDXB",
+                tab_gen: "Generation",
+                tab_active: "Active Cards",
+                tab_check: "Checker",
+                tab_settings: "Settings",
+                label_bin: "BIN / First Digits (6-12 digits)",
+                placeholder_bin: "Enter first 6-12 digits",
+                label_month: "Month (MM)",
+                label_year: "Year (YY)",
+                label_cvv: "CVV (Optional)",
+                placeholder_cvv: "Random if empty",
+                label_qty: "Quantity",
+                btn_generate: "Generate Cards",
+                checkbox_select_all: "Select All",
+                btn_send_check: "Send to Checker",
+                btn_load_active: "Load Active Cards (API Mock)",
+                th_card: "Card Number",
+                th_exp: "Expiry",
+                th_cvv: "CVV",
+                th_status: "Status",
+                label_sk_active: "Stripe Secret Key (Active Configuration)",
+                label_input_list: "Input List (Card|Exp|CVV)",
+                placeholder_list: "Paste your list here...",
+                btn_start_check: "Start Live Stripe Check",
+                header_config: "Configuration",
+                text_config_desc: "Manage your API keys and account settings here. These are saved locally.",
+                label_sk: "Stripe Secret Key (sk_live_...)",
+                label_pk: "Stripe Publishable Key (pk_live_...)",
+                label_accounts: "Accounts / Proxies List (Optional)",
+                placeholder_accounts: "Format: user:pass@ip:port or specific account IDs...",
+                btn_save: "Save Configuration",
+                msg_saved: "Settings Saved Successfully!",
+                val_random: "Random",
+                msg_no_active: "No verified active cards yet. Run the Checker to find live cards.",
+                luhn_passed: "Luhn Check Passed",
+                msg_invalid_bin: "Please enter a valid BIN (6-12 digits).",
+                msg_select_card: "Please select at least one card to send to Checker.",
+                label_paypal: "PayPal API",
+                label_mastercard: "MasterCard API",
+                btn_check_key: "Check"
+            },
+            ar: {
+                title: "مولد بطاقات الخصم",
+                signature: "بواسطة DRDXB",
+                tab_gen: "توليد",
+                tab_active: "البطاقات النشطة",
+                tab_check: "الفاحص",
+                tab_settings: "الإعدادات",
+                label_bin: "BIN / الأرقام الأولى (6-12 رقم)",
+                placeholder_bin: "أدخل أول 6-12 أرقام",
+                label_month: "الشهر (MM)",
+                label_year: "السنة (YY)",
+                label_cvv: "CVV (اختياري)",
+                placeholder_cvv: "عشوائي إذا فارغ",
+                label_qty: "الكمية",
+                btn_generate: "توليد البطاقات",
+                checkbox_select_all: "تحديد الكل",
+                btn_send_check: "إرسال للفحص",
+                btn_load_active: "تحميل البطاقات النشطة",
+                th_card: "رقم البطاقة",
+                th_exp: "الانتهاء",
+                th_cvv: "CVV",
+                th_status: "الحالة",
+                label_sk_active: "مفتاح Stripe السري (التكوين النشط)",
+                label_input_list: "قائمة الإدخال (Card|Exp|CVV)",
+                placeholder_list: "الصق قائمتك هنا...",
+                btn_start_check: "بدء فحص Stripe المباشر",
+                header_config: "التكوين",
+                text_config_desc: "أدر مفاتيح API وإعدادات الحساب هنا. يتم حفظها محلياً.",
+                label_sk: "مفتاح Stripe السري (sk_live_...)",
+                label_pk: "مفتاح Stripe العام (pk_live_...)",
+                label_accounts: "قائمة الحسابات / البروكسي (اختياري)",
+                placeholder_accounts: "التنسيق: user:pass@ip:port أو معرفات حساب محددة...",
+                btn_save: "حفظ الإعدادات",
+                msg_saved: "تم حفظ الإعدادات بنجاح!",
+                val_random: "عشوائي",
+                msg_no_active: "لا توجد بطاقات نشطة مؤكدة بعد. شغل الفاحص للعثور على بطاقات حية.",
+                luhn_passed: "اجتاز فحص Luhn",
+                msg_invalid_bin: "الرجاء إدخال BIN صحيح (6-12 رقم).",
+                msg_select_card: "الرجاء تحديد بطاقة واحدة على الأقل للإرسال للفحص.",
+                label_paypal: "PayPal API",
+                label_mastercard: "MasterCard API",
+                btn_check_key: "فحص"
+            },
+            zh: {
+                title: "借记卡生成器",
+                signature: "由 DRDXB 开发",
+                tab_gen: "生成",
+                tab_active: "活跃卡片",
+                tab_check: "检查器",
+                tab_settings: "设置",
+                label_bin: "BIN / 前几位 (6-12位)",
+                placeholder_bin: "输入前 6-12 位数字",
+                label_month: "月份 (MM)",
+                label_year: "年份 (YY)",
+                label_cvv: "CVV (可选)",
+                placeholder_cvv: "留空则随机",
+                label_qty: "数量",
+                btn_generate: "生成卡片",
+                checkbox_select_all: "全选",
+                btn_send_check: "发送到检查器",
+                btn_load_active: "加载活跃卡片",
+                th_card: "卡号",
+                th_exp: "过期",
+                th_cvv: "CVV",
+                th_status: "状态",
+                label_sk_active: "Stripe 密钥 (当前配置)",
+                label_input_list: "输入列表 (Card|Exp|CVV)",
+                placeholder_list: "在此粘贴列表...",
+                btn_start_check: "开始实时 Stripe 检查",
+                header_config: "配置",
+                text_config_desc: "在此管理您的 API 密钥和帐户设置。这些设置保存在本地。",
+                label_sk: "Stripe 密钥 (sk_live_...)",
+                label_pk: "Stripe 公钥 (pk_live_...)",
+                label_accounts: "帐户 / 代理列表 (可选)",
+                placeholder_accounts: "格式: user:pass@ip:port 或特定帐户 ID...",
+                btn_save: "保存配置",
+                msg_saved: "设置保存成功！",
+                val_random: "随机",
+                msg_no_active: "尚无验证的活跃卡片。运行检查器以查找有效卡片。",
+                luhn_passed: "Luhn 校验通过",
+                msg_invalid_bin: "请输入有效的 BIN (6-12位数字)。",
+                msg_select_card: "请至少选择一张卡片发送到检查器。"
+            },
+            tr: {
+                title: "Banka Kartı Oluşturucu",
+                signature: "DRDXB Tarafından",
+                tab_gen: "Oluşturma",
+                tab_active: "Aktif Kartlar",
+                tab_check: "Kontrolcü",
+                tab_settings: "Ayarlar",
+                label_bin: "BIN / İlk Rakamlar (6-12 hane)",
+                placeholder_bin: "İlk 6-12 rakamı girin",
+                label_month: "Ay (AA)",
+                label_year: "Yıl (YY)",
+                label_cvv: "CVV (İsteğe bağlı)",
+                placeholder_cvv: "Boşsa rastgele",
+                label_qty: "Miktar",
+                btn_generate: "Kart Oluştur",
+                checkbox_select_all: "Hepsini Seç",
+                btn_send_check: "Kontrolcüye Gönder",
+                btn_load_active: "Aktif Kartları Yükle",
+                th_card: "Kart Numarası",
+                th_exp: "Son Kullanma",
+                th_cvv: "CVV",
+                th_status: "Durum",
+                label_sk_active: "Stripe Gizli Anahtarı (Aktif Yapılandırma)",
+                label_input_list: "Giriş Listesi (Card|Exp|CVV)",
+                placeholder_list: "Listenizi buraya yapıştırın...",
+                btn_start_check: "Canlı Stripe Kontrolünü Başlat",
+                header_config: "Yapılandırma",
+                text_config_desc: "API anahtarlarınızı ve hesap ayarlarınızı buradan yönetin. Bunlar yerel olarak kaydedilir.",
+                label_sk: "Stripe Gizli Anahtarı (sk_live_...)",
+                label_pk: "Stripe Yayınlanabilir Anahtarı (pk_live_...)",
+                label_accounts: "Hesaplar / Proxy Listesi (İsteğe bağlı)",
+                placeholder_accounts: "Format: user:pass@ip:port veya belirli hesap ID'leri...",
+                btn_save: "Yapılandırmayı Kaydet",
+                msg_saved: "Ayarlar Başarıyla Kaydedildi!",
+                val_random: "Rastgele",
+                msg_no_active: "Henüz doğrulanmış aktif kart yok. Canlı kartları bulmak için Kontrolcüyü çalıştırın.",
+                luhn_passed: "Luhn Kontrolü Başarılı",
+                msg_invalid_bin: "Lütfen geçerli bir BIN girin (6-12 hane).",
+                msg_select_card: "Lütfen kontrolcüye göndermek için en az bir kart seçin."
+            },
+            ru: {
+                title: "Генератор Дебетовых Карт",
+                signature: "От DRDXB",
+                tab_gen: "Генерация",
+                tab_active: "Активные Карты",
+                tab_check: "Проверка",
+                tab_settings: "Настройки",
+                label_bin: "BIN / Первые Цифры (6-12 цифр)",
+                placeholder_bin: "Введите первые 6-12 цифр",
+                label_month: "Месяц (MM)",
+                label_year: "Год (YY)",
+                label_cvv: "CVV (Необязательно)",
+                placeholder_cvv: "Случайно, если пусто",
+                label_qty: "Количество",
+                btn_generate: "Создать Карты",
+                checkbox_select_all: "Выбрать Все",
+                btn_send_check: "Отправить на Проверку",
+                btn_load_active: "Загрузить Активные Карты",
+                th_card: "Номер Карты",
+                th_exp: "Срок",
+                th_cvv: "CVV",
+                th_status: "Статус",
+                label_sk_active: "Секретный Ключ Stripe (Активная Конфигурация)",
+                label_input_list: "Список Ввода (Card|Exp|CVV)",
+                placeholder_list: "Вставьте ваш список сюда...",
+                btn_start_check: "Запустить Живую Проверку Stripe",
+                header_config: "Конфигурация",
+                text_config_desc: "Управляйте ключами API и настройками аккаунта здесь. Они сохраняются локально.",
+                label_sk: "Секретный Ключ Stripe (sk_live_...)",
+                label_pk: "Публичный Ключ Stripe (pk_live_...)",
+                label_accounts: "Список Аккаунтов / Прокси (Необязательно)",
+                placeholder_accounts: "Формат: user:pass@ip:port или конкретные ID аккаунтов...",
+                btn_save: "Сохранить Конфигурацию",
+                msg_saved: "Настройки Успешно Сохранены!",
+                val_random: "Случайно",
+                msg_no_active: "Пока нет подтвержденных активных карт. Запустите Проверку, чтобы найти живые карты.",
+                luhn_passed: "Проверка Luhn Пройдена"
+            }
+        };
+
+        let currentLang = 'en';
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('syriaPay_lang', lang);
+            const selector = document.getElementById('langSelector');
+            if (selector) selector.value = lang;
+
+            // RTL support for Arabic
+            if (lang === 'ar') {
+                document.body.setAttribute('dir', 'rtl');
+            } else {
+                document.body.setAttribute('dir', 'ltr');
+            }
+
+            // Update Text
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    el.innerText = translations[lang][key];
+                }
+            });
+
+            // Update Placeholders
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (translations[lang] && translations[lang][key]) {
+                    el.placeholder = translations[lang][key];
+                }
+            });
+        }
+
+        // === Logic: Tab Switching ===
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            // Find button that calls this tab and activate it
+            const buttons = document.querySelectorAll('.tab-btn');
+            if (tabId === 'tab1') buttons[0].classList.add('active');
+            if (tabId === 'tab2') buttons[1].classList.add('active');
+            if (tabId === 'tab3') buttons[2].classList.add('active');
+            if (tabId === 'tab4') buttons[3].classList.add('active');
+        }
+
+        // === Logic: Settings Management ===
+        function saveSettings() {
+            const sk = document.getElementById('skInput').value.trim();
+            const pk = document.getElementById('pkInput').value.trim();
+            const paypal = document.getElementById('paypalInput').value.trim();
+            const mastercard = document.getElementById('mastercardInput').value.trim();
+            const acc = document.getElementById('accountsInput').value;
+
+            localStorage.setItem('syriaPay_sk', sk);
+            localStorage.setItem('syriaPay_pk', pk);
+            localStorage.setItem('syriaPay_paypal', paypal);
+            localStorage.setItem('syriaPay_mastercard', mastercard);
+            localStorage.setItem('syriaPay_acc', acc);
+
+            const msg = document.getElementById('saveMsg');
+            msg.innerText = translations[currentLang].msg_saved;
+            msg.style.color = "var(--success)";
+            setTimeout(() => { msg.innerText = ""; }, 3000);
+
+            updateCheckerUI();
+        }
+
+        function loadSettings() {
+            const sk = localStorage.getItem('syriaPay_sk') || "";
+            const pk = localStorage.getItem('syriaPay_pk') || "";
+            const paypal = localStorage.getItem('syriaPay_paypal') || "";
+            const mastercard = localStorage.getItem('syriaPay_mastercard') || "";
+            const acc = localStorage.getItem('syriaPay_acc') || "";
+
+            document.getElementById('skInput').value = sk;
+            document.getElementById('pkInput').value = pk;
+            document.getElementById('paypalInput').value = paypal;
+            document.getElementById('mastercardInput').value = mastercard;
+            document.getElementById('accountsInput').value = acc;
+
+            updateCheckerUI();
+        }
+
+        function updateCheckerUI() {
+            const sk = localStorage.getItem('syriaPay_sk');
+            const displayField = document.querySelector('#tab3 input[readonly]');
+            if (sk) {
+                displayField.value = sk.substring(0, 15) + "..." + sk.substring(sk.length - 4);
+                displayField.style.color = "var(--primary)";
+                displayField.style.fontWeight = "bold";
+            } else {
+                displayField.value = "sk_live_simulation_key_...";
+                displayField.style.color = "#64748b";
+                displayField.style.fontWeight = "normal";
+            }
+        }
+
+        // Initialize Settings on Load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+            // Trigger brand detection on load
+            detectBrand(document.getElementById('binInput').value);
+        });
+
+        // === Logic: Brand Detection & API Verification ===
+        function detectBrand(bin) {
+            const iconSpan = document.getElementById('brandIcon');
+            iconSpan.className = 'card-brand-icon'; // Reset
+            iconSpan.innerHTML = '';
+
+            if (!bin || bin.length < 1) return;
+
+            const firstDigit = bin.charAt(0);
+            if (firstDigit === '4') {
+                iconSpan.classList.add('visa');
+                iconSpan.innerHTML = 'VISA';
+            } else if (firstDigit === '5') {
+                iconSpan.classList.add('mastercard');
+                iconSpan.innerHTML = 'MASTERCARD';
+            } else if (firstDigit === '3') {
+                iconSpan.classList.add('amex');
+                iconSpan.innerHTML = 'AMEX';
+            } else if (firstDigit === '6') {
+                iconSpan.classList.add('discover');
+                iconSpan.innerHTML = 'DISCOVER';
+            }
+        }
+
+        async function verifyStripeKey() {
+            const sk = document.getElementById('skInput').value.trim();
+            const led = document.getElementById('led-stripe');
+
+            if (!sk.startsWith('sk_')) {
+                led.className = 'status-led error';
+                led.title = 'Invalid Format';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/verify-stripe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ secretKey: sk })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    led.className = 'status-led active';
+                    led.title = result.message + '\n' + result.details;
+                    alert("Stripe Key is Live: " + result.details);
+                } else {
+                    led.className = 'status-led error';
+                    led.title = result.message;
+                    alert("Stripe Error: " + result.message);
+                }
+            } catch (e) {
+                led.className = 'status-led error';
+                led.title = "Network Error";
+            }
+        }
+
+        function verifyGenericKey(type) {
+            const inputId = type === 'paypal' ? 'paypalInput' : 'mastercardInput';
+            const ledId = type === 'paypal' ? 'led-paypal' : 'led-mastercard';
+
+            const val = document.getElementById(inputId).value.trim();
+            const led = document.getElementById(ledId);
+
+            // Mock Validation Logic
+            if (val.length > 10) {
+                led.className = 'status-led active';
+                led.title = 'Key Format Valid (Mock)';
+            } else {
+                led.className = 'status-led error';
+                led.title = 'Invalid Length';
+            }
+        }
+
+        // === Logic: Luhn Generator ===
+        let generatedCardsList = [];
+        let activeCardsList = [];
+
+        function luhnCheckDigit(payload) {
+            let digits = payload.split('').map(Number).reverse();
+            let sum = 0;
+
+            for (let i = 0; i < digits.length; i++) {
+                let digit = digits[i];
+                if (i % 2 === 0) { // Double every 2nd digit from right (in final number, this corresponds to even indices in reversed payload)
+                    digit *= 2;
+                    if (digit > 9) digit -= 9;
+                }
+                sum += digit;
+            }
+
+            return (sum * 9) % 10;
+        }
+
+        function generateCards() {
+            const bin = document.getElementById('binInput').value.trim();
+            const qty = parseInt(document.getElementById('qtyInput').value);
+            const outputDiv = document.getElementById('genOutputFormatted');
+
+            // Custom Inputs
+            const selMonth = document.getElementById('monthInput').value;
+            const selYear = document.getElementById('yearInput').value;
+            const customCvv = document.getElementById('cvvInput').value.trim();
+
+            if (!/^\d{6,12}$/.test(bin)) {
+                alert("Please enter a valid BIN (6-12 digits).");
+                return;
+            }
+
+            generatedCardsList = [];
+            outputDiv.innerHTML = "";
+            document.getElementById('selectionControls').style.display = 'flex';
+            document.getElementById('selectAllBox').checked = false;
+
+            for (let i = 0; i < qty; i++) {
+                // Target length 16. Payload length 15.
+                // Random digits needed = 15 - bin.length
+                let randomPart = "";
+                for (let j = 0; j < (15 - bin.length); j++) {
+                    randomPart += Math.floor(Math.random() * 10);
+                }
+
+                let payload = bin + randomPart;
+                let checkDigit = luhnCheckDigit(payload);
+                let cardNum = payload + checkDigit;
+
+                // Logic: Determine Exp
+                let month = (selMonth === "rnd") ? String(Math.floor(Math.random() * 12) + 1).padStart(2, '0') : selMonth;
+                let year = (selYear === "rnd") ? (Math.floor(Math.random() * 5) + 26) : selYear;
+
+                // Logic: Determine CVV
+                let cvv = customCvv ? customCvv : String(Math.floor(Math.random() * 1000)).padStart(3, '0');
+
+                let line = `${cardNum}|${month}/20${year}|${cvv}`;
+                generatedCardsList.push(line);
+
+                // Create formatted entry
+                const entry = document.createElement('div');
+                entry.style.borderBottom = "1px solid #1f2937";
+                entry.style.padding = "8px 0";
+                entry.style.display = "flex";
+                entry.style.alignItems = "center";
+
+                // Checkbox
+                const checkbox = document.createElement('input');
+                checkbox.type = "checkbox";
+                checkbox.className = "card-checkbox";
+                checkbox.value = line;
+
+                // Content
+                const content = document.createElement('span');
+                content.innerHTML = `${line} <span class="luhn-badge" data-i18n="luhn_passed">${translations[currentLang].luhn_passed}</span>`;
+
+                entry.appendChild(checkbox);
+                entry.appendChild(content);
+                outputDiv.appendChild(entry);
+            }
+        }
+
+        function toggleSelectAll() {
+            const master = document.getElementById('selectAllBox');
+            const checkboxes = document.querySelectorAll('.card-checkbox');
+            checkboxes.forEach(cb => cb.checked = master.checked);
+        }
+
+        function sendSelectedToChecker() {
+            const checkboxes = document.querySelectorAll('.card-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert(translations[currentLang].msg_select_card);
+                return;
+            }
+
+            let selectedCards = [];
+            checkboxes.forEach(cb => selectedCards.push(cb.value));
+
+            // Switch to Checker Tab
+            switchTab('tab3');
+
+            // Populate Input
+            const checkInput = document.getElementById('checkInput');
+            checkInput.value = selectedCards.join('\n');
+
+            // Highlight Input slightly
+            checkInput.focus();
+            checkInput.style.borderColor = "var(--primary)";
+            setTimeout(() => { checkInput.style.borderColor = "var(--border)"; }, 1000);
+        }
+
+        // === Logic: Active Cards Mock ===
+        function loadActiveCards() {
+            const tbody = document.querySelector('#activeTable tbody');
+            tbody.innerHTML = "";
+
+            if (activeCardsList.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="4" style="text-align:center; color: var(--text-light); padding: 20px;">${translations[currentLang].msg_no_active}</td>`;
+                tbody.appendChild(row);
+                return;
+            }
+
+            activeCardsList.forEach(cardStr => {
+                const parts = cardStr.split('|');
+                const row = document.createElement('tr');
+
+                // Status is always Verified Active for this list
+                const status = '<span style="color:#10b981; font-weight:bold">Active (Verified 100%)</span>';
+
+                row.innerHTML = `
+                <td>${parts[0]}</td>
+                <td>${parts[1]}</td>
+                <td>${parts[2]}</td>
+                <td>${status}</td>
+            `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // === Logic: Checker (Real Stripe API) ===
+        async function startChecker() {
+            const input = document.getElementById('checkInput').value.trim();
+            const log = document.getElementById('checkLog');
+            const secretKey = localStorage.getItem('syriaPay_sk');
+
+            log.innerHTML = "";
+
+            if (!secretKey || !secretKey.startsWith('sk_')) {
+                log.innerHTML = `<span class="log-die">Error: Missing or Invalid Secret Key. Please go to Settings and enter a valid sk_live_... key.</span>`;
+                return;
+            }
+
+            let lines = input ? input.split('\n') : generatedCardsList;
+            if (lines.length === 0) {
+                log.innerHTML = "No cards to check. Please generate cards first or paste a list.";
+                return;
+            }
+
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+
+                // Log checking
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.innerText = `Checking ${line}...`;
+                log.appendChild(entry);
+                log.scrollTop = log.scrollHeight;
+
+                // Parse Card Details
+                const parts = line.split('|');
+                if (parts.length < 3) {
+                    entry.innerHTML = `<span class="log-die">[INVALID FORMAT]</span> ${line}`;
+                    continue;
+                }
+
+                const cardNumber = parts[0];
+                const exp = parts[1].split('/'); // MM/YYYY or MM/YY
+                let expMonth = exp[0];
+                let expYear = exp[1];
+                if (expYear.length === 2) expYear = "20" + expYear;
+                const cvv = parts[2];
+
+                try {
+                    // Call Local Backend
+                    const response = await fetch('/api/check-card', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            cardNumber,
+                            expMonth,
+                            expYear,
+                            cvv,
+                            secretKey
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.live) {
+                        entry.innerHTML = `<span class="log-live">[LIVE]</span> ${line} - ${data.message}`;
+                        if (!activeCardsList.includes(line)) {
+                            activeCardsList.push(line);
+                        }
+                    } else {
+                        entry.innerHTML = `<span class="log-die">[DIE]</span> ${line} - ${data.message}`;
+                    }
+
+                } catch (err) {
+                    entry.innerHTML = `<span class="log-die">[ERROR]</span> ${line} - Connection Failed: ${err.message}`;
+                }
+            }
+        }
+    </script>
+
+</body>
+
+</html>
