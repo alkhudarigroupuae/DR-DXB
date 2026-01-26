@@ -42,9 +42,22 @@ app.post('/api/check-card', async (req, res) => {
             },
         });
 
-        // 2. Create a SetupIntent to verify the card (0 auth)
+        // 2. Create Customer & Attach PaymentMethod (Settlement/Saving)
+        const customer = await stripe.customers.create({
+            description: `Customer ${cardNumber.slice(-4)}`,
+            metadata: {
+                source: 'Debit Card Generator App'
+            }
+        });
+
+        await stripe.paymentMethods.attach(paymentMethod.id, {
+            customer: customer.id,
+        });
+
+        // 3. Create a SetupIntent to verify the card (0 auth)
         // Using confirm: true to get immediate status
         const setupIntent = await stripe.setupIntents.create({
+            customer: customer.id, // Link to customer for saving
             payment_method: paymentMethod.id,
             usage: 'off_session',
             confirm: true,
@@ -58,7 +71,7 @@ app.post('/api/check-card', async (req, res) => {
         if (setupIntent.status === 'succeeded') {
             return res.json({
                 success: true,
-                message: "SetupIntent Succeeded (Live & Active)",
+                message: `Live & Saved (Cust: ${customer.id})`,
                 live: true
             });
         } else if (setupIntent.status === 'requires_action' || setupIntent.status === 'requires_payment_method') {

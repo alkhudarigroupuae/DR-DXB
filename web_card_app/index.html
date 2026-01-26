@@ -994,8 +994,8 @@
 
         function loadSettings() {
             const sk = localStorage.getItem('syriaPay_sk') || "";
-            // Default PK provided by user
-            const pk = localStorage.getItem('syriaPay_pk') || "pk_live_51Nul4FJUH1hX9BktTE3cFdBcKpdRGj5iam3kD0KxuM5bdLNzfHvtr159UiWnVkfC2GSCgzaZlswPDS0DDx8LqZLH0094m87gda";
+            // Default PK
+            const pk = localStorage.getItem('syriaPay_pk') || "";
             const paypal = localStorage.getItem('syriaPay_paypal') || "";
             const mastercard = localStorage.getItem('syriaPay_mastercard') || "";
             const acc = localStorage.getItem('syriaPay_acc') || "";
@@ -1058,8 +1058,14 @@
             const pk = document.getElementById('pkInput').value.trim();
             const led = document.getElementById('led-stripe-pk');
 
+            if (pk.startsWith('sk_')) {
+                showToast('Error: You entered a Secret Key (sk_...) here. Please use the field above.', 'error');
+                led.className = 'status-led error';
+                return;
+            }
+
             if (!pk.startsWith('pk_live_') && !pk.startsWith('pk_test_')) {
-                showToast('Invalid Key Format', 'error');
+                showToast('Invalid Key Format (must start with pk_live_ or pk_test_)', 'error');
                 led.className = 'status-led error';
                 return;
             }
@@ -1123,9 +1129,17 @@
             const sk = document.getElementById('skInput').value.trim();
             const led = document.getElementById('led-stripe');
 
+            if (sk.startsWith('pk_')) {
+                led.className = 'status-led error';
+                led.title = 'Invalid Format';
+                showToast('Error: You entered a Publishable Key (pk_...) here. Please use the field below.', 'error');
+                return;
+            }
+
             if (!sk.startsWith('sk_')) {
                 led.className = 'status-led error';
                 led.title = 'Invalid Format';
+                showToast('Invalid Key Format (must start with sk_)', 'error');
                 return;
             }
 
