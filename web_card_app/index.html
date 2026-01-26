@@ -630,8 +630,15 @@
             </div>
 
             <div class="form-group">
-                <label data-i18n="label_pk">Stripe Publishable Key (pk_live_...)</label>
-                <input type="text" id="pkInput" placeholder="pk_live_..." style="font-family: monospace;">
+                <label>
+                    <span data-i18n="label_pk">Stripe Publishable Key (pk_live_...)</span>
+                    <span id="led-stripe-pk" class="status-led" title="Unknown Status"></span>
+                </label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="pkInput" placeholder="pk_live_..." style="font-family: monospace; flex: 1;">
+                    <button class="action-btn" style="width: auto; padding: 10px;" onclick="verifyPublishableKey()"
+                        data-i18n="btn_check_key">Check</button>
+                </div>
             </div>
 
             <hr style="border-color: #333; margin: 20px 0;">
@@ -1041,6 +1048,71 @@
             } else if (firstDigit === '6') {
                 iconSpan.classList.add('discover');
                 iconSpan.innerHTML = 'DISCOVER';
+            }
+        }
+
+        async function verifyPublishableKey() {
+            const pk = document.getElementById('pkInput').value.trim();
+            const led = document.getElementById('led-stripe-pk');
+
+            if (!pk.startsWith('pk_live_') && !pk.startsWith('pk_test_')) {
+                showToast('Invalid Key Format', 'error');
+                led.className = 'status-led error';
+                return;
+            }
+
+            led.className = 'status-led loading';
+
+            try {
+                // Try to create a token with dummy data to test the key
+                // Using fetch directly to Stripe API
+                const body = new URLSearchParams();
+                body.append('card[number]', '4242424242424242');
+                body.append('card[exp_month]', '12');
+                body.append('card[exp_year]', '2030');
+                body.append('card[cvc]', '123');
+
+                const response = await fetch('https://api.stripe.com/v1/tokens', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Basic ' + btoa(pk + ':'),
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: body
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Token created successfully -> Live
+                    showToast('Key is Live & Valid!', 'success');
+                    led.className = 'status-led active';
+                    localStorage.setItem('syriaPay_stripe_pk', pk);
+                } else {
+                    // Check error type
+                    // If error is "card_declined" (402), the key IS VALID because it reached the bank/processor
+                    // If error is "invalid_request_error" (401) or "Invalid API Key", it is INVALID
+
+                    if (data.error && data.error.code === 'card_declined') {
+                        showToast('Key is Live! (Card Declined)', 'success');
+                        led.className = 'status-led active';
+                        localStorage.setItem('syriaPay_stripe_pk', pk);
+                    } else if (response.status === 401 || (data.error && data.error.message.includes('Invalid API Key'))) {
+                        showToast('Invalid API Key', 'error');
+                        led.className = 'status-led error';
+                    } else {
+                        // Other errors usually mean the key is working but parameters are wrong
+                        // e.g. "parameter_missing"
+                        showToast('Key is Valid (Error: ' + data.error.message + ')', 'success');
+                        led.className = 'status-led active';
+                        localStorage.setItem('syriaPay_stripe_pk', pk);
+                    }
+                }
+
+            } catch (error) {
+                console.error(error);
+                showToast('Connection Error', 'error');
+                led.className = 'status-led error';
             }
         }
 
