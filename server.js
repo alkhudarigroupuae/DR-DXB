@@ -3,9 +3,13 @@ const stripeLib = require('stripe');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
+const binLookup = require('binlookup')(); // Initialize binlookup
 
 const app = express();
 const PORT = process.env.PORT || 8081;
+
+// In-memory cache for BIN lookups
+const binCache = {};
 
 // Middleware
 app.use(cors());
@@ -14,7 +18,7 @@ app.use(express.static(path.join(__dirname, 'web_card_app')));
 
 // Route to check card
 app.post('/api/check-card', async (req, res) => {
-    let { cardNumber, expMonth, expYear, cvv, secretKey } = req.body;
+    let { paymentMethodId, token, secretKey } = req.body;
 
     // Use environment variable if secretKey is not provided
     if (!secretKey) {
@@ -31,20 +35,30 @@ app.post('/api/check-card', async (req, res) => {
     try {
         const stripe = stripeLib(secretKey);
 
-        // 1. Create a PaymentMethod
-        const paymentMethod = await stripe.paymentMethods.create({
-            type: 'card',
-            card: {
-                number: cardNumber,
-                exp_month: parseInt(expMonth),
-                exp_year: parseInt(expYear),
-                cvc: cvv,
-            },
-        });
+        // Handle Legacy Token Flow
+        if (token) {
+            const customer = await stripe.customers.create({
+                source: token, // This attaches the card and validates it
+                description: `Customer from Token`,
+                metadata: {
+                    source: 'Debit Card Generator App'
+                }
+            });
+
+            return res.json({
+                success: true,
+                message: `Live & Saved (Cust: ${customer.id})`,
+                live: true
+            });
+        }
+
+        // Handle PaymentMethod Flow
+        // 1. Retrieve the PaymentMethod created on the client side
+        const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
 
         // 2. Create Customer & Attach PaymentMethod (Settlement/Saving)
         const customer = await stripe.customers.create({
-            description: `Customer ${cardNumber.slice(-4)}`,
+            description: `Customer ${paymentMethod.card.last4}`,
             metadata: {
                 source: 'Debit Card Generator App'
             }
@@ -98,6 +112,7 @@ app.post('/api/check-card', async (req, res) => {
         return res.json({
             success: false,
             message: `Declined: ${reason}`,
+            code: error.code || 'unknown_error',
             live: false
         });
     }
@@ -125,6 +140,39 @@ app.post('/api/verify-stripe', async (req, res) => {
             success: false,
             message: error.message
         });
+    }
+});
+
+// Proxy Route for BIN Lookup (binlist.net)
+app.get('/api/lookup/:bin', async (req, res) => {
+    const bin = req.params.bin;
+    if (!bin || bin.length < 6) {
+        return res.status(400).json({ success: false, message: "Invalid BIN length" });
+    }
+
+    // Check Cache
+    if (binCache[bin]) {
+        return res.json({ success: true, found: true, data: binCache[bin] });
+    }
+
+    try {
+        // Use binlookup library
+        const data = await binLookup(bin);
+
+        if (data) {
+            binCache[bin] = data; // Cache result
+            return res.json({ success: true, found: true, data });
+        } else {
+            return res.json({ success: false, found: false });
+        }
+
+    } catch (error) {
+        // binlookup might throw or return error on 404
+        // If it's a 404, it means not found
+        if (error.message && error.message.includes('404')) {
+            return res.json({ success: false, found: false });
+        }
+        return res.json({ success: false, message: error.message || 'Unknown Error' });
     }
 });
 

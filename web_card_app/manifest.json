@@ -1,0 +1,21 @@
+{
+  "name": "Debit Card Generator",
+  "short_name": "CardGen",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1f2937",
+  "theme_color": "#10b981",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/6963/6963703.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/6963/6963703.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
