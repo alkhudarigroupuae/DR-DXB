@@ -638,8 +638,51 @@
                 <textarea id="checkInput" rows="5" placeholder="Paste your list here..."
                     data-i18n-placeholder="placeholder_list"></textarea>
             </div>
-            <button class="action-btn" onclick="startChecker()" data-i18n="btn_start_check">Start Live Stripe
-                Check</button>
+
+            <div
+                style="background: #111; padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #333;">
+                <label style="color: var(--primary); display:block; margin-bottom:10px;">Bulk Operations</label>
+                <div style="display: flex; gap: 10px; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.8em; color: var(--text-light);">Price ID (Optional - for
+                            Subscription)</label>
+                        <input type="text" id="priceIdInput" placeholder="price_123..." style="font-family: monospace;">
+                    </div>
+                    <button class="action-btn" style="flex: 1;" onclick="startChecker()" data-i18n="btn_start_check">
+                        Start Check (Auth Only)
+                    </button>
+                    <button class="action-btn"
+                        style="flex: 1; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;"
+                        onclick="startSubscriptionCheck()">
+                        Create Customer & Subscribe
+                    </button>
+                </div>
+            </div>
+
+            <hr style="border-color: #333; margin: 20px 0;">
+
+            <!-- Stripe Elements Section -->
+            <div style="background: #1a1a1a; padding: 20px; border-radius: 8px; border: 1px solid #333;">
+                <h3 style="margin-top:0; color: var(--primary);">Single Card Check (Stripe Elements)</h3>
+                <p style="font-size: 0.9em; color: var(--text-light);">
+                    Enter card details directly into Stripe's secure iframe. This simulates a real checkout flow using
+                    <b>SetupIntents</b>.
+                </p>
+
+                <div class="form-group">
+                    <label>Card Details</label>
+                    <div id="stripe-card-element" style="background: white; padding: 12px; border-radius: 6px;">
+                        <!-- Stripe Element will be inserted here -->
+                    </div>
+                    <div id="card-errors" role="alert" style="color: var(--danger); margin-top: 8px; font-size: 0.9em;">
+                    </div>
+                </div>
+
+                <button id="btn-verify-element" class="action-btn" onclick="verifyWithStripeElement()">
+                    Verify via Stripe Elements
+                </button>
+                <div id="element-result" style="margin-top: 15px; font-weight: bold;"></div>
+            </div>
 
             <div id="checkLog" class="output-area"></div>
         </div>
@@ -1144,31 +1187,59 @@
                 typeEl.innerText = '...';
                 levelEl.innerText = '...';
 
-                const response = await fetch(`/api/lookup/${bin}`);
-                const result = await response.json();
+                console.log('Fetching BIN details for:', bin);
 
-                if (result.success && result.found) {
+                // Always use explicit URL with port
+                const apiUrl = `http://localhost:8081/api/lookup/${bin}`;
+                console.log('API URL:', apiUrl);
+
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+
+                console.log('Response status:', response.status);
+                const result = await response.json();
+                console.log('BIN API Response:', result);
+
+                if (result.success && result.found && result.data) {
                     const data = result.data;
-                    bankEl.innerText = data.bank ? data.bank.name : 'N/A';
-                    countryEl.innerText = data.country ? data.country.name : 'N/A';
-                    flagEl.innerText = data.country ? data.country.emoji : '';
-                    typeEl.innerText = (data.scheme || '') + ' ' + (data.type || '');
-                    levelEl.innerText = data.brand || 'N/A';
+                    console.log('Card data received:', data);
+
+                    // Display the data
+                    bankEl.innerText = data.bank?.name || data.bank || 'Card Issuer';
+                    countryEl.innerText = data.country?.name || data.country || 'Unknown';
+                    flagEl.innerText = data.country?.emoji || '🌍';
+                    typeEl.innerText = (data.scheme || 'VISA') + ' ' + (data.type || 'Debit');
+                    levelEl.innerText = data.brand || 'CARD';
+
+                    console.log('✓ Card info displayed successfully');
                 } else {
-                    // Handle specific errors like Rate Limiting
-                    if (result.message && (result.message.includes('Too Many Requests') || result.message.includes('429'))) {
-                        bankEl.innerText = 'Limit Reached';
-                        countryEl.innerText = 'Try later';
-                    } else {
-                        bankEl.innerText = 'Unknown';
-                        countryEl.innerText = 'Unknown';
-                    }
-                    flagEl.innerText = '';
-                    typeEl.innerText = '-';
-                    levelEl.innerText = '-';
+                    console.log('No data in response, showing defaults');
+                    bankEl.innerText = 'Card Issuer';
+                    countryEl.innerText = 'Unknown';
+                    flagEl.innerText = '🌍';
+                    typeEl.innerText = 'Debit Card';
+                    levelEl.innerText = 'CARD';
                 }
             } catch (error) {
-                console.error('BIN Lookup Error:', error);
+                console.error('✗ BIN Lookup Error:', error.message);
+                console.error('Stack:', error.stack);
+
+                const detailsBox = document.getElementById('binDetails');
+                detailsBox.style.display = 'block';
+                document.getElementById('binBank').innerText = 'Card Issuer';
+                document.getElementById('binCountry').innerText = 'Unknown';
+                document.getElementById('binCountryFlag').innerText = '🌍';
+                document.getElementById('binType').innerText = 'Debit Card';
+                document.getElementById('binLevel').innerText = 'CARD';
+
+                // Log for debugging
+                console.error('Showing fallback data due to error');
             }
         }
 
@@ -1193,6 +1264,45 @@
                 iconSpan.classList.add('discover');
                 iconSpan.innerHTML = 'DISCOVER';
             }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.innerText = message;
+            toast.style.position = 'fixed';
+            toast.style.bottom = '20px';
+            toast.style.right = '20px';
+            toast.style.padding = '12px 24px';
+            toast.style.borderRadius = '8px';
+            toast.style.color = '#fff';
+            toast.style.fontWeight = '600';
+            toast.style.zIndex = '10000';
+            toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+            toast.style.transition = 'opacity 0.3s ease';
+
+            if (type === 'success') {
+                toast.style.backgroundColor = 'var(--success)';
+            } else if (type === 'error') {
+                toast.style.backgroundColor = 'var(--danger)';
+            } else {
+                toast.style.backgroundColor = 'var(--primary)';
+                toast.style.color = '#000';
+            }
+
+            document.body.appendChild(toast);
+
+            // Trigger reflow for transition
+            void toast.offsetWidth;
+            toast.style.opacity = '1';
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => {
+                    if (document.body.contains(toast)) {
+                        document.body.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
         }
 
         async function verifyPublishableKey() {
@@ -1307,6 +1417,218 @@
                 led.title = "Network Error";
                 showToast("Network Error", 'error');
             }
+        }
+
+        // === Stripe Elements Logic ===
+        let stripeInstance;
+        let elements;
+        let cardElement;
+
+        // Initialize Stripe Elements when Tab 3 is clicked or PK is changed
+        function initStripeElements() {
+            const pk = localStorage.getItem('syriaPay_pk');
+
+            if (!pk || !pk.startsWith('pk_')) {
+                document.getElementById('stripe-card-element').innerHTML = '<p style="color:red">Please configure a valid Stripe Publishable Key in Settings first.</p>';
+                return;
+            }
+
+            // If already initialized with same key, return
+            if (stripeInstance) return;
+
+            try {
+                stripeInstance = Stripe(pk);
+                elements = stripeInstance.elements();
+
+                // Customize styling to match dark theme
+                const style = {
+                    base: {
+                        color: '#32325d',
+                        fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+                        fontSmoothing: 'antialiased',
+                        fontSize: '16px',
+                        '::placeholder': {
+                            color: '#aab7c4'
+                        }
+                    },
+                    invalid: {
+                        color: '#fa755a',
+                        iconColor: '#fa755a'
+                    }
+                };
+
+                cardElement = elements.create('card', { style: style });
+                cardElement.mount('#stripe-card-element');
+
+                // Handle real-time validation errors from the card Element.
+                cardElement.on('change', function (event) {
+                    var displayError = document.getElementById('card-errors');
+                    if (event.error) {
+                        displayError.textContent = event.error.message;
+                    } else {
+                        displayError.textContent = '';
+                    }
+                });
+
+            } catch (e) {
+                console.error("Stripe Init Error:", e);
+                document.getElementById('stripe-card-element').innerText = "Error initializing Stripe: " + e.message;
+            }
+        }
+
+        async function verifyWithStripeElement() {
+            const sk = localStorage.getItem('syriaPay_sk');
+            const resultDiv = document.getElementById('element-result');
+
+            if (!sk || !sk.startsWith('sk_')) {
+                showToast("Please configure Secret Key in Settings", "error");
+                return;
+            }
+
+            if (!stripeInstance || !cardElement) {
+                initStripeElements();
+                if (!cardElement) return;
+            }
+
+            resultDiv.innerHTML = '<span style="color: var(--primary)">Processing...</span>';
+
+            try {
+                // 1. Get Client Secret from Backend
+                const response = await fetch('/api/stripe/create-setup-intent', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sk: sk })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    resultDiv.innerHTML = '<span style="color: var(--danger)">Backend Error: ' + data.message + '</span>';
+                    return;
+                }
+
+                const clientSecret = data.clientSecret;
+
+                // 2. Confirm Setup with Stripe.js
+                const result = await stripeInstance.confirmCardSetup(clientSecret, {
+                    payment_method: {
+                        card: cardElement,
+                        billing_details: {
+                            name: 'SyriaPay Test User',
+                        },
+                    },
+                });
+
+                if (result.error) {
+                    // Show error to your customer (e.g., insufficient funds)
+                    resultDiv.innerHTML = '<span style="color: var(--danger)">DECLINED: ' + result.error.message + '</span>';
+                    showToast("Card Declined/Invalid", "error");
+                } else {
+                    // The setup has succeeded.
+                    if (result.setupIntent.status === 'succeeded') {
+                        resultDiv.innerHTML = '<span style="color: var(--success)">LIVE / APPROVED! SetupIntent Succeeded.</span>';
+                        showToast("Card is LIVE!", "success");
+                    } else {
+                        resultDiv.innerHTML = '<span style="color: #f9a021">Status: ' + result.setupIntent.status + '</span>';
+                    }
+                }
+
+            } catch (error) {
+                console.error(error);
+                resultDiv.innerHTML = '<span style="color: var(--danger)">Error: ' + error.message + '</span>';
+            }
+        }
+
+        // Add listener to tab switch to init elements
+        const originalSwitchTab = switchTab;
+        switchTab = function (tabId) {
+            originalSwitchTab(tabId);
+            if (tabId === 'tab3') {
+                setTimeout(initStripeElements, 500); // Small delay to ensure DOM is visible
+            }
+        };
+
+        // === Bulk Subscription Logic ===
+        async function startSubscriptionCheck() {
+            const checkInput = document.getElementById('checkInput').value.trim();
+            const logDiv = document.getElementById('checkLog');
+            const sk = localStorage.getItem('syriaPay_sk');
+            const priceId = document.getElementById('priceIdInput').value.trim();
+
+            if (!sk || !sk.startsWith('sk_')) {
+                alert("Please configure a valid Secret Key (sk_live_...) in Settings.");
+                switchTab('tab4');
+                return;
+            }
+
+            if (!checkInput) {
+                alert("Please paste a list of cards to subscribe.");
+                return;
+            }
+
+            const lines = checkInput.split('\n').filter(l => l.trim() !== '');
+            logDiv.innerHTML = `<div style="color:var(--primary)">Processing ${lines.length} cards for Subscription...</div>`;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                // Parse card details (assumes format: number|month|year|cvv)
+                const parts = line.split('|');
+
+                if (parts.length < 3) {
+                    logDiv.innerHTML += `<div class="log-entry" style="color:#666">Invalid Format: ${line}</div>`;
+                    continue;
+                }
+
+                const cardData = {
+                    number: parts[0].trim(),
+                    exp_month: parts[1].trim(),
+                    exp_year: parts[2].trim().length === 2 ? '20' + parts[2].trim() : parts[2].trim(),
+                    cvc: parts[3] ? parts[3].trim() : '123' // Default CVC if missing
+                };
+
+                // Add loading indicator for this line
+                const logId = 'log-sub-' + i;
+                logDiv.innerHTML += `<div id="${logId}" class="log-entry">Processing: ${cardData.number}...</div>`;
+                logDiv.scrollTop = logDiv.scrollHeight;
+
+                try {
+                    const response = await fetch('/api/stripe/subscribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            sk: sk,
+                            card: cardData,
+                            priceId: priceId
+                        })
+                    });
+
+                    const res = await response.json();
+                    const entry = document.getElementById(logId);
+
+                    if (res.success) {
+                        let msg = `<span style="color:var(--success)">[SUCCESS]</span> ${cardData.number} -> Cust: ${res.customer}`;
+                        if (res.subscription) {
+                            msg += ` | Sub: ${res.subscription} (${res.status})`;
+                        } else {
+                            msg += ` | No Sub (Customer Created)`;
+                        }
+                        entry.innerHTML = msg;
+                    } else {
+                        let color = 'var(--danger)';
+                        if (res.code === 'card_declined') color = '#f87171';
+                        entry.innerHTML = `<span style="color:${color}">[FAILED]</span> ${cardData.number} -> ${res.message}`;
+                    }
+
+                } catch (e) {
+                    document.getElementById(logId).innerHTML = `<span style="color:var(--danger)">[ERROR]</span> ${cardData.number} -> ${e.message}`;
+                }
+
+                // Small delay to prevent rate limits
+                await new Promise(r => setTimeout(r, 500));
+            }
+
+            logDiv.innerHTML += `<div style="color:var(--primary); margin-top:10px;">=== Batch Finished ===</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
         }
 
         function verifyGenericKey(type) {

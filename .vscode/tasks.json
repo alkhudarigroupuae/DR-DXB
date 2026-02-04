@@ -1,0 +1,47 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start Node Server",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node",
+			"args": [
+				"server.js"
+			],
+			"isBackground": true,
+			"problemMatcher": [
+				"$node"
+			]
+		},
+		{
+			"label": "Start Node Server",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node",
+			"args": [
+				"server.js"
+			],
+			"isBackground": true,
+			"problemMatcher": [
+				"$node"
+			]
+		},
+		{
+			"label": "Start Server",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"server.js"
+			],
+			"isBackground": true
+		},
+		{
+			"label": "Start Node Server Final",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node",
+			"args": [
+				"server.js"
+			],
+			"isBackground": true
+		}
+	]
+}

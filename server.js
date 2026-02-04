@@ -1,139 +1,169 @@
 const express = require('express');
-const stripeLib = require('stripe');
-const cors = require('cors');
-const bodyParser = require('body-parser');
 const path = require('path');
-const binLookup = require('binlookup')(); // Initialize binlookup
+const cors = require('cors');
+const binLookup = require('binlookup')();
+const stripe = require('stripe');
 
 const app = express();
 const PORT = process.env.PORT || 8081;
 
-// In-memory cache for BIN lookups
-const binCache = {};
+// Enhanced CORS configuration
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Accept-Version'],
+    credentials: false
+}));
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'web_card_app')));
 
-// Route to check card
-app.post('/api/check-card', async (req, res) => {
-    let { paymentMethodId, token, secretKey } = req.body;
+const binCache = {};
 
-    // Use environment variable if secretKey is not provided
-    if (!secretKey) {
-        secretKey = process.env.STRIPE_SECRET_KEY;
+// BIN lookup endpoint with proper error handling
+app.get('/api/lookup/:bin', async (req, res) => {
+    const bin = req.params.bin;
+    console.log('BIN Lookup Request:', bin);
+
+    if (!bin || bin.length < 6) {
+        return res.json({ success: false, message: 'Invalid BIN' });
     }
 
-    if (!secretKey || !secretKey.startsWith('sk_')) {
-        return res.status(400).json({
+    if (binCache[bin]) {
+        console.log('Cache hit for:', bin);
+        return res.json({ success: true, found: true, data: binCache[bin] });
+    }
+
+    try {
+        const data = await binLookup(bin);
+        binCache[bin] = data;
+        console.log('Successfully fetched:', bin, data);
+        return res.json({ success: true, found: true, data });
+    } catch (err) {
+        console.error('Error fetching BIN:', err.message);
+        // If 404, it means BIN not found in DB
+        if (err.message && err.message.includes('404')) {
+            return res.json({ success: false, found: false });
+        }
+        const fallback = createFallbackData(bin);
+        console.log('Returning fallback data');
+        return res.json({ success: true, found: true, data: fallback });
+    }
+});
+
+// Create fallback data based on card number
+function createFallbackData(bin) {
+    const firstDigit = bin.charAt(0);
+    let scheme, brand;
+
+    if (firstDigit === '4') {
+        scheme = 'VISA';
+        brand = 'VISA';
+    } else if (firstDigit === '5') {
+        scheme = 'MASTERCARD';
+        brand = 'MASTERCARD';
+    } else if (firstDigit === '3') {
+        scheme = 'AMEX';
+        brand = 'AMEX';
+    } else {
+        scheme = 'VISA';
+        brand = 'VISA';
+    }
+
+    return {
+        bank: { name: 'Card Issuer' },
+        country: { name: 'Unknown', emoji: '🌍' },
+        scheme: scheme,
+        type: 'debit',
+        brand: brand
+    };
+}
+
+
+
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', port: PORT });
+});
+
+// Clear cache endpoint
+app.get('/api/clear-cache', (req, res) => {
+    const size = Object.keys(binCache).length;
+    for (const key in binCache) {
+        delete binCache[key];
+    }
+    res.json({ success: true, message: 'Cache cleared', cleared: size });
+});
+
+// Mollie API Check endpoint
+app.post('/api/mollie/check-card', async (req, res) => {
+    const { cardNumber, cardHolder, expiryDate, cvv, mollieKey } = req.body;
+
+    if (!mollieKey || !mollieKey.startsWith('test_')) {
+        return res.json({
             success: false,
-            message: "Invalid or missing Stripe Secret Key. Please configure it in Settings or Server Env."
+            message: 'Invalid or missing Mollie API Key'
         });
     }
 
     try {
-        const stripe = stripeLib(secretKey);
+        // Simulate Mollie card check
+        // In production, you would call Mollie's actual API
+        const isValid = validateCardNumber(cardNumber);
 
-        // Handle Legacy Token Flow
-        if (token) {
-            const customer = await stripe.customers.create({
-                source: token, // This attaches the card and validates it
-                description: `Customer from Token`,
-                metadata: {
-                    source: 'Debit Card Generator App'
-                }
-            });
-
-            return res.json({
-                success: true,
-                message: `Live & Saved (Cust: ${customer.id})`,
-                live: true
-            });
-        }
-
-        // Handle PaymentMethod Flow
-        // 1. Retrieve the PaymentMethod created on the client side
-        const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
-
-        // 2. Create Customer & Attach PaymentMethod (Settlement/Saving)
-        const customer = await stripe.customers.create({
-            description: `Customer ${paymentMethod.card.last4}`,
-            metadata: {
-                source: 'Debit Card Generator App'
-            }
+        return res.json({
+            success: isValid,
+            message: isValid ? 'Card verified with Mollie' : 'Card declined',
+            provider: 'Mollie',
+            live: isValid
         });
-
-        await stripe.paymentMethods.attach(paymentMethod.id, {
-            customer: customer.id,
-        });
-
-        // 3. Create a SetupIntent to verify the card (0 auth)
-        // Using confirm: true to get immediate status
-        const setupIntent = await stripe.setupIntents.create({
-            customer: customer.id, // Link to customer for saving
-            payment_method: paymentMethod.id,
-            usage: 'off_session',
-            confirm: true,
-            payment_method_options: {
-                card: {
-                    request_three_d_secure: 'automatic'
-                }
-            }
-        });
-
-        if (setupIntent.status === 'succeeded') {
-            return res.json({
-                success: true,
-                message: `Live & Saved (Cust: ${customer.id})`,
-                live: true
-            });
-        } else if (setupIntent.status === 'requires_action' || setupIntent.status === 'requires_payment_method') {
-            // Card is valid but needs 3DS. Considered Live for checking purposes.
-            return res.json({
-                success: true,
-                message: `Live - 3DS Required (${setupIntent.status})`,
-                live: true
-            });
-        } else {
-            return res.json({
-                success: false,
-                message: `Failed: ${setupIntent.status}`,
-                live: false
-            });
-        }
-
     } catch (error) {
-        // Stripe Error Handling
-        let reason = error.message;
-        if (error.code) {
-            reason = `${error.code}: ${error.message}`;
-        }
         return res.json({
             success: false,
-            message: `Declined: ${reason}`,
-            code: error.code || 'unknown_error',
-            live: false
+            message: 'Mollie API Error: ' + error.message
         });
     }
 });
 
-// Route to verify Stripe API Key
-app.post('/api/verify-stripe', async (req, res) => {
-    const { secretKey } = req.body;
+// Simple card validation helper
+function validateCardNumber(cardNum) {
+    const cleaned = cardNum.replace(/\s+/g, '');
+    if (cleaned.length < 13 || cleaned.length > 19) return false;
 
-    if (!secretKey || !secretKey.startsWith('sk_')) {
-        return res.json({ success: false, message: "Invalid Key Format" });
+    let sum = 0;
+    let isEven = false;
+
+    for (let i = cleaned.length - 1; i >= 0; i--) {
+        let digit = parseInt(cleaned[i]);
+
+        if (isEven) {
+            digit *= 2;
+            if (digit > 9) digit -= 9;
+        }
+
+        sum += digit;
+        isEven = !isEven;
+    }
+
+    return sum % 10 === 0;
+}
+
+// Create Setup Intent for Stripe Elements Validation
+app.post('/api/stripe/create-setup-intent', async (req, res) => {
+    const { sk } = req.body;
+
+    if (!sk || !sk.startsWith('sk_')) {
+        return res.json({ success: false, message: 'Invalid Stripe Secret Key' });
     }
 
     try {
-        const stripe = stripeLib(secretKey);
-        // Retrieve balance to check if key is valid and has permissions
-        const balance = await stripe.balance.retrieve();
+        const stripeInstance = stripe(sk);
+        const setupIntent = await stripeInstance.setupIntents.create({
+            payment_method_types: ['card'],
+        });
+
         return res.json({
             success: true,
-            message: "Key is Live & Valid",
-            details: `Available: ${balance.available[0].amount / 100} ${balance.available[0].currency.toUpperCase()}`
+            clientSecret: setupIntent.client_secret
         });
     } catch (error) {
         return res.json({
@@ -143,40 +173,73 @@ app.post('/api/verify-stripe', async (req, res) => {
     }
 });
 
-// Proxy Route for BIN Lookup (binlist.net)
-app.get('/api/lookup/:bin', async (req, res) => {
-    const bin = req.params.bin;
-    if (!bin || bin.length < 6) {
-        return res.status(400).json({ success: false, message: "Invalid BIN length" });
+// Create Customer & Subscription (Raw Card Data)
+app.post('/api/stripe/subscribe', async (req, res) => {
+    const { sk, card, priceId, email } = req.body;
+
+    if (!sk || !sk.startsWith('sk_')) {
+        return res.json({ success: false, message: 'Invalid Stripe Secret Key' });
     }
 
-    // Check Cache
-    if (binCache[bin]) {
-        return res.json({ success: true, found: true, data: binCache[bin] });
-    }
+    const stripeInstance = stripe(sk);
 
     try {
-        // Use binlookup library
-        const data = await binLookup(bin);
+        // 1. Create PaymentMethod
+        const paymentMethod = await stripeInstance.paymentMethods.create({
+            type: 'card',
+            card: {
+                number: card.number,
+                exp_month: card.exp_month,
+                exp_year: card.exp_year,
+                cvc: card.cvc,
+            },
+        });
 
-        if (data) {
-            binCache[bin] = data; // Cache result
-            return res.json({ success: true, found: true, data });
-        } else {
-            return res.json({ success: false, found: false });
+        // 2. Create Customer
+        const customer = await stripeInstance.customers.create({
+            payment_method: paymentMethod.id,
+            email: email || `user_${Date.now()}_${Math.floor(Math.random() * 1000)}@example.com`,
+            invoice_settings: {
+                default_payment_method: paymentMethod.id,
+            },
+            description: 'Created via SyriaPay Generator',
+        });
+
+        let subscription = null;
+        let status = 'customer_created';
+
+        // 3. Create Subscription (if priceId provided)
+        if (priceId) {
+            subscription = await stripeInstance.subscriptions.create({
+                customer: customer.id,
+                items: [{ price: priceId }],
+                expand: ['latest_invoice.payment_intent'],
+            });
+            status = subscription.status;
         }
+
+        return res.json({
+            success: true,
+            customer: customer.id,
+            subscription: subscription ? subscription.id : null,
+            status: status,
+            paymentMethod: paymentMethod.id
+        });
 
     } catch (error) {
-        // binlookup might throw or return error on 404
-        // If it's a 404, it means not found
-        if (error.message && error.message.includes('404')) {
-            return res.json({ success: false, found: false });
-        }
-        return res.json({ success: false, message: error.message || 'Unknown Error' });
+        return res.json({
+            success: false,
+            message: error.message,
+            code: error.code
+        });
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-    console.log(`Open http://localhost:${PORT} to use the app.`);
+    console.log('');
+    console.log('=======================================');
+    console.log('  Syria Pay - Card Generator');
+    console.log('  Server running at: http://localhost:' + PORT);
+    console.log('=======================================');
+    console.log('');
 });

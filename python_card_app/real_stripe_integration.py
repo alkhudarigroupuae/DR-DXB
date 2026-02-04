@@ -1,3 +1,4 @@
+import os
 import stripe
 import sys
 
@@ -5,10 +6,25 @@ import sys
 # Syria Pay - Stripe Integration (Backend)
 # ==========================================
 
-# Configure your Stripe Secret Key here
-# For testing, use sk_test_...
-# For production, use sk_live_...
-stripe.api_key = "sk_test_..." 
+# Configure your Stripe Secret Key from environment variable `STRIPE_SECRET_KEY`
+# For testing, set STRIPE_SECRET_KEY to sk_test_... in your environment
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "sk_test_...") 
+
+# Helper to verify incoming webhook signatures when using `stripe listen`
+def verify_webhook(payload, sig_header, endpoint_secret):
+    """
+    Verifies a Stripe webhook payload using `endpoint_secret`.
+    Returns the constructed event on success, or raises stripe.error.SignatureVerificationError.
+    Usage:
+      event = verify_webhook(request.data, request.headers.get('Stripe-Signature'), endpoint_secret)
+    """
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+        return event
+    except Exception:
+        raise
 
 def create_customer(email, name, phone=None):
     """
