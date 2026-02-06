@@ -52,6 +52,20 @@ app.get('/api/admin/stats', (req, res) => {
     });
 });
 
+// System Status Endpoint
+app.get('/api/status', (req, res) => {
+    const hasSk = !!process.env.STRIPE_SK && process.env.STRIPE_SK.startsWith('sk_');
+    const skMasked = hasSk ? `...${process.env.STRIPE_SK.slice(-4)}` : null;
+    
+    res.json({
+        success: true,
+        serverTime: new Date(),
+        stripeConfigured: hasSk,
+        stripeKeyMasked: skMasked,
+        port: PORT
+    });
+});
+
 // BIN lookup endpoint with proper error handling
 app.get('/api/lookup/:bin', async (req, res) => {
     const bin = req.params.bin;

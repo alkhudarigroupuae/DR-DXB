@@ -631,8 +631,9 @@
         <div id="tab3" class="tab-content">
             <div class="form-group">
                 <label data-i18n="label_sk_active">Stripe Secret Key (Active Configuration)</label>
-                <input type="text" value="Not Configured" readonly
-                    style="background: #f1f5f9; color: #64748b; font-weight: bold;">
+                <input type="text" id="activeSkDisplay" value="Checking..." readonly
+                    style="background: #f1f5f9; color: #64748b; font-weight: bold; border: 1px solid #ddd;">
+                <small id="activeSkSource" style="color: var(--primary); display: block; margin-top: 5px;"></small>
             </div>
             <div class="form-group">
                 <label data-i18n="label_input_list">Input List (Card|Exp|CVV)</label>
@@ -663,7 +664,7 @@
             <hr style="border-color: #333; margin: 20px 0;">
 
             <!-- Stripe Elements Section -->
-            <div style="background: #1a1a1a; padding: 20px; border-radius: 8px; border: 1px solid #333;">
+            <div id="stripeElementsSection" style="background: #1a1a1a; padding: 20px; border-radius: 8px; border: 1px solid #333; display: none;">
                 <h3 style="margin-top:0; color: var(--primary);">Single Card Check (Stripe Elements)</h3>
                 <p style="font-size: 0.9em; color: var(--text-light);">
                     Enter card details directly into Stripe's secure iframe. This simulates a real checkout flow using
@@ -683,6 +684,14 @@
                     Verify via Stripe Elements
                 </button>
                 <div id="element-result" style="margin-top: 15px; font-weight: bold;"></div>
+            </div>
+            
+            <div id="stripeElementsWarning" style="background: #331010; padding: 15px; border-radius: 8px; border: 1px solid #500; margin-top: 20px; text-align: center;">
+                <h4 style="color: #f87171; margin-top: 0;">Stripe Elements Disabled</h4>
+                <p style="color: #ccc; font-size: 0.9em;">
+                    To use the Single Card Check (Stripe Elements), you must configure a <b>Publishable Key (pk_live_...)</b> in Settings.
+                    <br>You can still use the <b>Bulk Checker</b> above with just the Secret Key.
+                </p>
             </div>
 
             <div id="checkLog" class="output-area"></div>
@@ -1641,14 +1650,71 @@
             }
         }
 
-        // Add listener to tab switch to init elements
+        // === Backend Status & Config Display ===
+        async function updateActiveConfigDisplay() {
+            const display = document.getElementById('activeSkDisplay');
+            const sourceLabel = document.getElementById('activeSkSource');
+            const pk = localStorage.getItem('syriaPay_pk');
+            const skLocal = localStorage.getItem('syriaPay_sk');
+            
+            // Check Frontend Config
+            let displayValue = "Checking...";
+            let sourceValue = "";
+
+            try {
+                // Check Backend Status
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                
+                if (skLocal && skLocal !== 'Not Configured') {
+                    displayValue = `Custom Key (Ending in ...${skLocal.slice(-4)})`;
+                    sourceValue = "Source: Browser Local Storage (User Provided)";
+                } else if (data.stripeConfigured) {
+                    displayValue = `Server Managed (Ending in ${data.stripeKeyMasked || '...'})`;
+                    sourceValue = "Source: Backend Environment Variables (.env)";
+                } else {
+                    displayValue = "Not Configured";
+                    sourceValue = "Please configure a Secret Key in Settings or .env file";
+                }
+
+            } catch (e) {
+                console.error("Status Check Error:", e);
+                if (skLocal) {
+                    displayValue = `Custom Key (Ending in ...${skLocal.slice(-4)})`;
+                    sourceValue = "Source: Browser Local Storage (Backend Offline?)";
+                } else {
+                    displayValue = "Backend Unreachable";
+                }
+            }
+
+            if(display) display.value = displayValue;
+            if(sourceLabel) sourceLabel.textContent = sourceValue;
+
+            // Update Stripe Elements Visibility
+            const elSection = document.getElementById('stripeElementsSection');
+            const elWarning = document.getElementById('stripeElementsWarning');
+            
+            if (pk && pk.startsWith('pk_')) {
+                if(elSection) elSection.style.display = 'block';
+                if(elWarning) elWarning.style.display = 'none';
+            } else {
+                if(elSection) elSection.style.display = 'none';
+                if(elWarning) elWarning.style.display = 'block';
+            }
+        }
+
+        // Add listener to tab switch to update display
         const originalSwitchTab = switchTab;
         switchTab = function (tabId) {
             originalSwitchTab(tabId);
             if (tabId === 'tab3') {
+                updateActiveConfigDisplay();
                 setTimeout(initStripeElements, 500); // Small delay to ensure DOM is visible
             }
         };
+
+        // Call on load
+        document.addEventListener('DOMContentLoaded', updateActiveConfigDisplay);
 
         // === Bulk Subscription Logic ===
         async function startSubscriptionCheck() {
