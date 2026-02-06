@@ -280,6 +280,85 @@ app.post('/api/stripe/subscribe', async (req, res) => {
     }
 });
 
+// Verify Stripe Key Endpoint
+app.post('/api/verify-stripe', async (req, res) => {
+    const { secretKey } = req.body;
+    
+    if (!secretKey || !secretKey.startsWith('sk_')) {
+        return res.json({ success: false, message: 'Invalid Key Format' });
+    }
+
+    try {
+        const stripeInstance = stripe(secretKey);
+        const balance = await stripeInstance.balance.retrieve();
+        
+        let currency = 'usd';
+        let amount = 0;
+        if (balance.available && balance.available.length > 0) {
+            currency = balance.available[0].currency;
+            amount = balance.available[0].amount;
+        }
+
+        return res.json({
+            success: true,
+            message: 'Key is Valid',
+            details: `Balance: ${amount/100} ${currency.toUpperCase()}`
+        });
+    } catch (error) {
+        return res.json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// Check Card Endpoint (Stripe)
+app.post('/api/check-card', async (req, res) => {
+    const { token, number } = req.body; // Expects token from client
+    let sk = req.body.sk || process.env.STRIPE_SK;
+
+    // Use default key if not provided or placeholder
+    if (!sk || sk === 'Not Configured') {
+        sk = process.env.STRIPE_SK;
+    }
+
+    if (!sk) {
+        return res.status(500).json({ success: false, message: 'Server Stripe Key not configured' });
+    }
+
+    try {
+        const stripeInstance = stripe(sk);
+        
+        // Strategy: Create a Customer with the source (token)
+        // This validates the card with 0-auth or $0/$1 auth depending on Stripe settings
+        const customer = await stripeInstance.customers.create({
+            source: token, // Card token from client
+            description: 'Card Check - SyriaPay',
+        });
+
+        logTransaction('Check', 'success', `Card Checked: ${customer.id}`);
+
+        return res.json({
+            live: true,
+            message: 'Card is Live (Customer Created)',
+            customer: customer.id
+        });
+
+    } catch (error) {
+        logTransaction('Check', 'failed', error.message);
+        
+        // Analyze Error
+        const code = error.code;
+        const msg = error.message;
+
+        return res.json({
+            live: false,
+            code: code,
+            message: msg
+        });
+    }
+});
+
 app.listen(PORT, () => {
     console.log('');
     console.log('=======================================');
