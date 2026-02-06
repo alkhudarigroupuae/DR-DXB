@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const axios = require('axios'); // For MPGS API calls
 const binLookup = require('binlookup')();
 const stripe = require('stripe');
 
@@ -394,7 +395,13 @@ app.post('/api/verify-stripe', async (req, res) => {
 
 // Check Card Endpoint (Stripe)
 app.post('/api/check-card', async (req, res) => {
-    const { token, number } = req.body; // Expects token from client
+    const { token, number, useMpgs } = req.body; // Expects token from client
+    
+    // --- MPGS Logic (Mastercard Gateway) ---
+    if (useMpgs) {
+        return handleMpgsCheck(req, res);
+    }
+    
     let sk = req.body.sk || process.env.STRIPE_SK;
 
     // Use default key if not provided or placeholder
@@ -439,11 +446,106 @@ app.post('/api/check-card', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log('');
-    console.log('=======================================');
-    console.log('  Syria Pay - Card Generator');
-    console.log('  Server running at: http://localhost:' + PORT);
-    console.log('=======================================');
-    console.log('');
-});
+// --- MPGS Handler (Mastercard Gateway) ---
+async function handleMpgsCheck(req, res) {
+    const { card, mpgsConfig } = req.body;
+    
+    // Credentials from Request or Defaults
+    const merchantId = mpgsConfig?.merchantId || 'TESTMPGS_TEST';
+    const password = mpgsConfig?.password || 'c543aae3f27bd1e0b3db7cdb8b246a57';
+    const apiUrl = mpgsConfig?.apiUrl || 'https://ap-gateway.mastercard.com/';
+    
+    // Unique Transaction ID
+    const orderId = `ORD-${Date.now()}`;
+    const txnId = `TXN-${Date.now()}`;
+    
+    // Construct Auth Header
+    const auth = Buffer.from(`Merchant.${merchantId}:${password}`).toString('base64');
+    
+    // Determine Expiry (YY or YYYY)
+    let expYear = card.exp_year;
+    if (expYear.length === 4) expYear = expYear.slice(-2); // MPGS usually takes YY, let's check docs. 
+    // Wait, MPGS API usually takes YY or YYYY. Let's send YY to be safe or check errors.
+    
+    try {
+        // API Endpoint: /api/rest/version/latest/merchant/{merchantId}/order/{orderId}/transaction/{transactionId}
+        const endpoint = `${apiUrl}api/rest/version/latest/merchant/${merchantId}/order/${orderId}/transaction/${txnId}`;
+        
+        console.log(`MPGS Check: ${card.number} | Order: ${orderId}`);
+        
+        const payload = {
+            apiOperation: "AUTHORIZE", // Use AUTHORIZE to check funds/validity
+            order: {
+                amount: "1.00",
+                currency: "USD"
+            },
+            sourceOfFunds: {
+                provided: {
+                    card: {
+                        number: card.number,
+                        expiry: {
+                            month: card.exp_month,
+                            year: card.exp_year.slice(-2) // Convert 2026 -> 26
+                        },
+                        securityCode: card.cvc
+                    }
+                },
+                type: "CARD"
+            }
+        };
+
+        const response = await axios.put(endpoint, payload, {
+            headers: {
+                'Authorization': `Basic ${auth}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = response.data;
+        const result = data.result; // SUCCESS, FAILURE, PENDING, UNKNOWN
+        
+        // Log transaction
+        logTransaction('MPGS Check', result, `Order: ${orderId} | ${data.response?.gatewayCode || ''}`);
+
+        if (result === 'SUCCESS' || (data.response && data.response.gatewayCode === 'APPROVED')) {
+            return res.json({
+                live: true,
+                message: 'Approved (MPGS)',
+                provider: 'Mastercard Gateway',
+                details: data
+            });
+        } else {
+             return res.json({
+                live: false,
+                message: data.response?.gatewayCode || 'Declined',
+                provider: 'Mastercard Gateway',
+                details: data
+            });
+        }
+
+    } catch (error) {
+        console.error('MPGS Error:', error.response ? error.response.data : error.message);
+        logTransaction('MPGS Check', 'Error', error.message);
+        
+        return res.json({
+            live: false,
+            message: 'Gateway Error: ' + (error.response?.data?.error?.explanation || error.message),
+            provider: 'Mastercard Gateway'
+        });
+    }
+}
+
+// Only listen if run directly (local development)
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log('');
+        console.log('=======================================');
+        console.log('  Syria Pay - Card Generator');
+        console.log('  Server running at: http://localhost:' + PORT);
+        console.log('=======================================');
+        console.log('');
+    });
+}
+
+// Export for Vercel
+module.exports = app;

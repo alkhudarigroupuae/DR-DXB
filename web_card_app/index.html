@@ -611,6 +611,8 @@
                     data-i18n="btn_copy">Copy</button>
                 <button class="action-btn" style="flex:1; background: #333; color: white;"
                     onclick="downloadActiveCards()" data-i18n="btn_download">Download .txt</button>
+                <button class="action-btn" style="flex:0.5; background: #7f1d1d; color: white;"
+                    onclick="clearActiveCardsHistory()" data-i18n="btn_clear">Clear History</button>
             </div>
             <table id="activeTable">
                 <thead>
@@ -635,6 +637,35 @@
                     style="background: #f1f5f9; color: #64748b; font-weight: bold; border: 1px solid #ddd;">
                 <small id="activeSkSource" style="color: var(--primary); display: block; margin-top: 5px;"></small>
             </div>
+
+            <!-- MPGS Toggle & Config -->
+            <div class="form-group" style="margin-top: 15px; border-top: 1px solid #333; padding-top: 15px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" id="useMpgsCheckbox" onchange="toggleMpgsConfig()">
+                    <label for="useMpgsCheckbox" style="cursor:pointer; font-weight:bold; color: var(--primary);"
+                        data-i18n="checkbox_use_mpgs">Use MasterCard Gateway (MPGS)</label>
+                </div>
+
+                <div id="mpgsConfigSection"
+                    style="display:none; margin-top: 15px; padding: 15px; background: #1a1a1a; border-radius: 6px; border: 1px solid #333;">
+                    <div class="form-group">
+                        <label data-i18n="label_mpgs_merchant">Merchant ID</label>
+                        <input type="text" id="mpgsMerchantId" placeholder="TESTMPGS_TEST"
+                            data-i18n-placeholder="placeholder_mpgs_merchant" oninput="saveMpgsConfig()">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="label_mpgs_pass">API Password</label>
+                        <input type="password" id="mpgsApiPassword" placeholder="c543..."
+                            data-i18n-placeholder="placeholder_mpgs_pass" oninput="saveMpgsConfig()">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="label_mpgs_url">API URL</label>
+                        <input type="text" id="mpgsApiUrl" value="https://ap-gateway.mastercard.com/" placeholder="https://..."
+                            data-i18n-placeholder="placeholder_mpgs_url" oninput="saveMpgsConfig()">
+                    </div>
+                </div>
+            </div>
+
             <div class="form-group">
                 <label data-i18n="label_input_list">Input List (Card|Exp|CVV)</label>
                 <textarea id="checkInput" rows="5" placeholder="Paste your list here..."
@@ -887,8 +918,17 @@
                 btn_refresh: "Refresh List",
                 btn_copy: "Copy",
                 btn_download: "Download .txt",
+                btn_clear: "Clear History",
                 msg_copied: "Copied to clipboard!",
-                msg_downloaded: "List downloaded."
+                msg_downloaded: "List downloaded.",
+                msg_cleared: "History cleared.",
+                checkbox_use_mpgs: "Use MasterCard Gateway (MPGS)",
+                label_mpgs_merchant: "Merchant ID",
+                label_mpgs_pass: "API Password",
+                label_mpgs_url: "API URL",
+                placeholder_mpgs_merchant: "TESTMPGS_TEST",
+                placeholder_mpgs_pass: "API Password",
+                placeholder_mpgs_url: "https://ap-gateway.mastercard.com/"
             },
             ar: {
                 title: "مولد بطاقات الخصم",
@@ -935,8 +975,17 @@
                 btn_refresh: "تحديث القائمة",
                 btn_copy: "نسخ",
                 btn_download: "تحميل .txt",
+                btn_clear: "مسح السجل",
                 msg_copied: "تم النسخ للحافظة!",
-                msg_downloaded: "تم تحميل القائمة."
+                msg_downloaded: "تم تحميل القائمة.",
+                msg_cleared: "تم مسح السجل.",
+                checkbox_use_mpgs: "استخدام بوابة ماستركارد (MPGS)",
+                label_mpgs_merchant: "معرف التاجر (Merchant ID)",
+                label_mpgs_pass: "كلمة مرور API",
+                label_mpgs_url: "رابط API",
+                placeholder_mpgs_merchant: "TESTMPGS_TEST",
+                placeholder_mpgs_pass: "كلمة مرور API",
+                placeholder_mpgs_url: "https://ap-gateway.mastercard.com/"
             },
             zh: {
                 title: "借记卡生成器",
@@ -980,8 +1029,10 @@
                 btn_refresh: "刷新列表",
                 btn_copy: "复制",
                 btn_download: "下载 .txt",
+                btn_clear: "清除历史",
                 msg_copied: "已复制到剪贴板！",
-                msg_downloaded: "列表已下载。"
+                msg_downloaded: "列表已下载。",
+                msg_cleared: "历史已清除。"
             },
             tr: {
                 title: "Banka Kartı Oluşturucu",
@@ -1025,8 +1076,10 @@
                 btn_refresh: "Listeyi Yenile",
                 btn_copy: "Kopyala",
                 btn_download: "İndir .txt",
+                btn_clear: "Geçmişi Temizle",
                 msg_copied: "Pano kopyalandı!",
-                msg_downloaded: "Liste indirildi."
+                msg_downloaded: "Liste indirildi.",
+                msg_cleared: "Geçmiş temizlendi."
             },
             ru: {
                 title: "Генератор Дебетовых Карт",
@@ -1068,8 +1121,10 @@
                 btn_refresh: "Обновить Список",
                 btn_copy: "Копировать",
                 btn_download: "Скачать .txt",
+                btn_clear: "Очистить Историю",
                 msg_copied: "Скопировано в буфер обмена!",
-                msg_downloaded: "Список скачан."
+                msg_downloaded: "Список загружен.",
+                msg_cleared: "История очищена."
             }
         };
 
@@ -1150,7 +1205,10 @@
             buttons.forEach(b => b.classList.remove('active'));
 
             if (tabId === 'tab1') buttons[0].classList.add('active');
-            if (tabId === 'tab2') buttons[1].classList.add('active');
+            if (tabId === 'tab2') {
+                buttons[1].classList.add('active');
+                loadActiveCards(); // Auto-load active cards
+            }
             if (tabId === 'tab3') buttons[2].classList.add('active');
             if (tabId === 'tab5') buttons[3].classList.add('active'); // Admin
             if (tabId === 'tab4') buttons[4].classList.add('active'); // Settings
@@ -1214,9 +1272,53 @@
             }
         }
 
+        function toggleMpgsConfig() {
+            const isChecked = document.getElementById('useMpgsCheckbox').checked;
+            const configSection = document.getElementById('mpgsConfigSection');
+            if (isChecked) {
+                configSection.style.display = 'block';
+            } else {
+                configSection.style.display = 'none';
+            }
+            saveMpgsConfig();
+        }
+
+        function saveMpgsConfig() {
+            const useMpgs = document.getElementById('useMpgsCheckbox').checked;
+            const merchantId = document.getElementById('mpgsMerchantId').value;
+            const password = document.getElementById('mpgsApiPassword').value;
+            const url = document.getElementById('mpgsApiUrl').value;
+
+            localStorage.setItem('syriaPay_useMpgs', useMpgs);
+            localStorage.setItem('syriaPay_mpgsMerchantId', merchantId);
+            localStorage.setItem('syriaPay_mpgsApiPassword', password);
+            localStorage.setItem('syriaPay_mpgsApiUrl', url);
+        }
+
+        function loadMpgsConfig() {
+            const useMpgs = localStorage.getItem('syriaPay_useMpgs') === 'true';
+            const merchantId = localStorage.getItem('syriaPay_mpgsMerchantId');
+            const password = localStorage.getItem('syriaPay_mpgsApiPassword');
+            const url = localStorage.getItem('syriaPay_mpgsApiUrl');
+
+            document.getElementById('useMpgsCheckbox').checked = useMpgs;
+            if (merchantId) document.getElementById('mpgsMerchantId').value = merchantId;
+            if (password) document.getElementById('mpgsApiPassword').value = password;
+            if (url) document.getElementById('mpgsApiUrl').value = url;
+
+            // Trigger visibility update without saving again (to avoid recursion if we put save in toggle)
+            const configSection = document.getElementById('mpgsConfigSection');
+            if (useMpgs) {
+                configSection.style.display = 'block';
+            } else {
+                configSection.style.display = 'none';
+            }
+        }
+
         // Initialize Settings on Load
         window.addEventListener('DOMContentLoaded', () => {
             loadSettings();
+            loadMpgsConfig();
             // Trigger brand detection on load
             const binInput = document.getElementById('binInput');
             handleBinInput(binInput); // Format initial value
@@ -1275,8 +1377,8 @@
 
                 console.log('Fetching BIN details for:', bin);
 
-                // Always use explicit URL with port
-                const apiUrl = `http://localhost:8081/api/lookup/${bin}`;
+                // Always use relative URL for production compatibility
+                const apiUrl = `/api/lookup/${bin}`;
                 console.log('API URL:', apiUrl);
 
                 const response = await fetch(apiUrl, {
@@ -1879,6 +1981,33 @@
         let generatedCardsList = [];
         let activeCardsList = [];
 
+        // --- LocalStorage Persistence ---
+        const savedActiveCards = localStorage.getItem('syriaPay_activeCards');
+        if (savedActiveCards) {
+            try {
+                activeCardsList = JSON.parse(savedActiveCards);
+                if (!Array.isArray(activeCardsList)) activeCardsList = [];
+            } catch (e) {
+                console.error("Failed to load saved cards", e);
+                activeCardsList = [];
+            }
+        }
+
+        function saveActiveCardsToLocalStorage() {
+            localStorage.setItem('syriaPay_activeCards', JSON.stringify(activeCardsList));
+        }
+
+        function clearActiveCardsHistory() {
+             // Simple confirm before clearing
+             if (confirm("Are you sure you want to clear the history?")) {
+                activeCardsList = [];
+                saveActiveCardsToLocalStorage();
+                loadActiveCards(); // Update UI immediately
+                showToast(translations[currentLang].msg_cleared || "History cleared.", 'success');
+             }
+        }
+        // --------------------------------
+
         function luhnCheckDigit(payload) {
             let digits = payload.split('').map(Number).reverse();
             let sum = 0;
@@ -2077,15 +2206,92 @@
             const log = document.getElementById('checkLog');
             const secretKey = localStorage.getItem('syriaPay_sk');
             const publishableKey = localStorage.getItem('syriaPay_pk');
+            const useMpgs = document.getElementById('useMpgsCheckbox').checked;
 
             log.innerHTML = "";
 
             // Check Internet Connection
             if (!navigator.onLine) {
-                log.innerHTML = `<span class="log-die" style="font-size:1.1em; display:block; padding:10px; border:1px solid var(--danger);">⚠ Error: No Internet Connection.<br>Checking cards requires an active internet connection to contact Stripe.</span>`;
+                log.innerHTML = `<span class="log-die" style="font-size:1.1em; display:block; padding:10px; border:1px solid var(--danger);">⚠ Error: No Internet Connection.<br>Checking cards requires an active internet connection.</span>`;
                 return;
             }
 
+            // === MPGS LOGIC ===
+            if (useMpgs) {
+                 let lines = input ? input.split('\n') : generatedCardsList;
+                 if (lines.length === 0) {
+                     log.innerHTML = "No cards to check. Please generate cards first or paste a list.";
+                     return;
+                 }
+
+                 const mpgsConfig = {
+                     merchantId: document.getElementById('mpgsMerchantId').value.trim(),
+                     password: document.getElementById('mpgsApiPassword').value.trim(),
+                     apiUrl: document.getElementById('mpgsApiUrl').value.trim()
+                 };
+
+                 for (let line of lines) {
+                     line = line.trim();
+                     if (!line) continue;
+
+                     const entry = document.createElement('div');
+                     entry.className = 'log-entry';
+                     entry.innerText = `Checking ${line} (MPGS)...`;
+                     log.appendChild(entry);
+                     log.scrollTop = log.scrollHeight;
+
+                     const parts = line.split('|');
+                     if (parts.length < 3) {
+                         entry.innerHTML = `<span class="log-die">[INVALID FORMAT]</span> ${line}`;
+                         continue;
+                     }
+                     
+                     const cardNumber = parts[0].trim();
+                     const expRaw = parts[1].trim();
+                     const cvv = parts[2] ? parts[2].trim() : "";
+                     
+                     let expMonth, expYear;
+                     if (expRaw.includes('/')) {
+                         const expParts = expRaw.split('/');
+                         expMonth = expParts[0].trim();
+                         expYear = expParts[1] ? expParts[1].trim() : "";
+                     } else {
+                         entry.innerHTML = `<span class="log-die">[INVALID DATE FORMAT]</span> ${line}`;
+                         continue;
+                     }
+                     
+                     if (expYear.length === 2) expYear = "20" + expYear;
+
+                     try {
+                        const response = await fetch('/api/check-card', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                useMpgs: true,
+                                mpgsConfig: mpgsConfig,
+                                card: { number: cardNumber, exp_month: expMonth, exp_year: expYear, cvc: cvv }
+                            })
+                        });
+                        const data = await response.json();
+                        
+                        if (data.live) {
+                             entry.innerHTML = `<span class="log-live">[LIVE]</span> ${line} - ${data.message}`;
+                             if (!activeCardsList.includes(line)) {
+                                 activeCardsList.push(line);
+                                 saveActiveCardsToLocalStorage();
+                             }
+                        } else {
+                             entry.innerHTML = `<span class="log-die">[DECLINED]</span> ${line} - ${data.message}`;
+                        }
+                     } catch (err) {
+                        entry.innerHTML = `<span class="log-die">[ERROR]</span> ${line} - ${err.message}`;
+                     }
+                     await new Promise(r => setTimeout(r, 1000));
+                 }
+                 return; // End MPGS flow
+            }
+
+            // === EXISTING STRIPE LOGIC ===
             if (!secretKey || !secretKey.startsWith('sk_')) {
                 log.innerHTML = `<span class="log-die">Error: Missing or Invalid Secret Key. Please go to Settings and enter a valid sk_live_... key.</span>`;
                 return;
@@ -2244,6 +2450,7 @@
                         entry.innerHTML = `<span class="log-live">[LIVE]</span> ${line} - ${data.message}`;
                         if (!activeCardsList.includes(line)) {
                             activeCardsList.push(line);
+                            saveActiveCardsToLocalStorage();
                         }
                     } else {
                         // Distinguish errors
