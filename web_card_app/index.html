@@ -653,11 +653,19 @@
                     <button class="action-btn" style="flex: 1;" onclick="startChecker()" data-i18n="btn_start_check">
                         Start Check (Auth Only)
                     </button>
-                    <button class="action-btn"
-                        style="flex: 1; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;"
+                <div style="flex: 1; display:flex; flex-direction:column; justify-content:flex-end; gap:5px;">
+                     <div style="display:flex; align-items:center; gap:5px;">
+                        <input type="checkbox" id="motoCheckbox">
+                        <label for="motoCheckbox" style="font-size: 0.8em; color: var(--text-light); cursor:pointer;">
+                            Attempt MOTO (Virtual Terminal)
+                        </label>
+                     </div>
+                     <button class="action-btn"
+                        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; width:100%"
                         onclick="startSubscriptionCheck()">
-                        Create Customer & Subscribe
+                        Run Live Check
                     </button>
+                </div>
                 </div>
             </div>
 
@@ -1722,6 +1730,8 @@
             const logDiv = document.getElementById('checkLog');
             let sk = localStorage.getItem('syriaPay_sk');
             const priceId = document.getElementById('priceIdInput').value.trim();
+            const amountVal = document.getElementById('amountInput') ? document.getElementById('amountInput').value.trim() : "0";
+            const useMoto = document.getElementById('motoCheckbox').checked;
 
             // Allow fallback to backend environment key
             if (!sk || sk === 'Not Configured') {
@@ -1789,7 +1799,9 @@
                         body: JSON.stringify({
                             sk: sk,
                             card: cardData,
-                            priceId: priceId
+                            priceId: priceId,
+                            amount: amountVal,
+                            moto: useMoto
                         })
                     });
 
@@ -1800,9 +1812,14 @@
                         let msg = `<span style="color:var(--success)">[SUCCESS]</span> ${cardData.number} -> Cust: ${res.customer}`;
                         if (res.subscription) {
                             msg += ` | Sub: ${res.subscription} (${res.status})`;
+                        } else if (res.paymentIntent) {
+                            msg += ` | Charge: $${res.amount} (${res.status})`;
                         } else {
                             msg += ` | No Sub (Customer Created)`;
                         }
+                        
+                        if(useMoto) msg += ' <span style="color:orange; font-size:0.8em">[MOTO Attempted]</span>';
+                        
                         entry.innerHTML = msg;
                     } else {
                         let color = 'var(--danger)';

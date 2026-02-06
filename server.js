@@ -261,28 +261,87 @@ app.post('/api/stripe/subscribe', async (req, res) => {
             description: 'Created via SyriaPay Generator',
         });
 
+        const amountVal = req.body.amount ? parseFloat(req.body.amount) : 0;
+        const useMoto = req.body.moto === true; // Check for MOTO flag
+
         let subscription = null;
+        let paymentIntent = null;
         let status = 'customer_created';
 
-        // 3. Create Subscription (if priceId provided)
+        const resultData = {
+            success: true,
+            customer: customer.id,
+            paymentMethod: paymentMethod.id,
+            subscription: null,
+            status: status
+        };
+
         if (priceId) {
-            subscription = await stripeInstance.subscriptions.create({
+            // --- Subscription Flow ---
+            const subParams = {
                 customer: customer.id,
                 items: [{ price: priceId }],
                 expand: ['latest_invoice.payment_intent'],
-            });
-            status = subscription.status;
+            };
+
+            // Add MOTO options if requested
+            if (useMoto) {
+                subParams.payment_settings = {
+                    payment_method_options: {
+                        card: { moto: true }
+                    }
+                };
+            }
+
+            subscription = await stripeInstance.subscriptions.create(subParams);
+            resultData.subscription = subscription.id;
+            resultData.status = subscription.status;
+            
+            // Check if payment succeeded
+            if (subscription.latest_invoice && subscription.latest_invoice.payment_intent) {
+                 const pi = subscription.latest_invoice.payment_intent;
+                 if (pi.status === 'succeeded') {
+                     resultData.status = 'active';
+                 }
+            }
+
+            logTransaction('Subscription', 'success', `Cust: ${customer.id} | Sub: ${subscription.id} ${useMoto ? '[MOTO]' : ''}`, 10);
+
+        } else if (amountVal > 0) {
+            // --- One-Time Charge (Settlement) Flow ---
+            const piParams = {
+                amount: Math.round(amountVal * 100), // Convert to cents
+                currency: 'usd', // Default to USD
+                customer: customer.id,
+                payment_method: paymentMethod.id,
+                off_session: true, // Allow charging without user interaction
+                confirm: true, // Confirm immediately
+                description: `Settlement via SyriaPay ${useMoto ? '(MOTO)' : ''}`,
+                return_url: 'https://example.com/return' // Required for some flows
+            };
+
+            // Add MOTO options if requested
+            if (useMoto) {
+                piParams.payment_method_options = {
+                    card: { moto: true }
+                };
+            }
+
+            // Create PaymentIntent
+            paymentIntent = await stripeInstance.paymentIntents.create(piParams);
+
+            resultData.paymentIntent = paymentIntent.id;
+            resultData.status = paymentIntent.status;
+            resultData.amount = amountVal;
+
+            if (paymentIntent.status === 'succeeded') {
+                logTransaction('Charge', 'success', `Cust: ${customer.id} | Amt: $${amountVal} ${useMoto ? '[MOTO]' : ''}`, amountVal);
+            } else {
+                 logTransaction('Charge', 'pending', `Cust: ${customer.id} | Status: ${paymentIntent.status}`, 0);
+            }
         }
 
-        logTransaction('Subscription', 'success', `Cust: ${customer.id} | Sub: ${subscription ? subscription.id : 'None'}`, priceId ? 10 : 0);
-
-        return res.json({
-            success: true,
-            customer: customer.id,
-            subscription: subscription ? subscription.id : null,
-            status: status,
-            paymentMethod: paymentMethod.id
-        });
+        return res.json(resultData);
 
     } catch (error) {
         const cardNum = req.body.card && req.body.card.number ? req.body.card.number : 'Unknown';
