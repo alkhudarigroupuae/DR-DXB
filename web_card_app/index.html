@@ -711,6 +711,20 @@
                 </div>
             </div>
 
+            <!-- Publishable Key Input (For Elements) -->
+            <div class="form-group">
+                <label>
+                    <span>Stripe Publishable Key (pk_live_...)</span>
+                    <span id="led-stripe-pk" class="status-led" title="Unknown Status"></span>
+                </label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="pkInput" placeholder="pk_live_..."
+                        style="font-family: monospace; flex: 1;">
+                    <button class="action-btn" style="width: auto; padding: 10px;" onclick="verifyPublishableKey()">Check</button>
+                </div>
+                <small style="color: #666;">Required for the 'Checker' tab (Stripe Elements).</small>
+            </div>
+
             <div class="form-group">
                 <label>
                     <span data-i18n="label_pk">Stripe Publishable Key (pk_live_...)</span>
@@ -1431,14 +1445,47 @@
             }
         }
 
+        async function verifyPublishableKey() {
+            const pk = document.getElementById('pkInput').value.trim();
+            const led = document.getElementById('led-stripe-pk');
+
+            if (!pk.startsWith('pk_')) {
+                led.className = 'status-led error';
+                led.title = 'Invalid Format';
+                showToast('Invalid Key Format (must start with pk_)', 'error');
+                return;
+            }
+
+            try {
+                // Initialize Stripe to check validity
+                const stripeTest = Stripe(pk);
+                // Try a lightweight call
+                localStorage.setItem('syriaPay_pk', pk);
+                led.className = 'status-led active';
+                showToast('Publishable Key Saved!', 'success');
+            } catch (e) {
+                led.className = 'status-led error';
+                showToast("Invalid Publishable Key", 'error');
+            }
+        }
+
         async function verifyStripeKey() {
             const sk = document.getElementById('skInput').value.trim();
             const led = document.getElementById('led-stripe');
 
+            // --- FIX FOR USER CONFUSION (PK vs SK) ---
+            // If user enters a Publishable Key (pk_...) into the Secret Key field,
+            // we should explain it clearly OR auto-save it to the right place.
             if (sk.startsWith('pk_')) {
+                // Auto-save as Publishable Key if valid format
+                localStorage.setItem('syriaPay_pk', sk);
+                showToast('Info: You entered a Publishable Key (pk_...). Saved as Client Key.', 'success');
+                
+                // Clear the input to avoid confusion, or leave it and warn? 
+                // Let's warn them to enter the SK for full features.
                 led.className = 'status-led error';
-                led.title = 'Invalid Format';
-                showToast('Error: You entered a Publishable Key (pk_...) here. Please use the field below.', 'error');
+                led.title = 'This is a Publishable Key (pk_), not Secret Key (sk_)';
+                showToast('Note: This key is for the frontend (saved). Please enter Secret Key (sk_) for backend.', 'warning');
                 return;
             }
 
