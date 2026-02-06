@@ -1738,19 +1738,43 @@
 
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
-                // Parse card details (assumes format: number|month|year|cvv)
+                // Parse card details (assumes format: number|month|year|cvv OR number|month/year|cvv)
                 const parts = line.split('|');
 
-                if (parts.length < 3) {
+                if (parts.length < 2) {
                     logDiv.innerHTML += `<div class="log-entry" style="color:#666">Invalid Format: ${line}</div>`;
                     continue;
                 }
 
+                let number = parts[0].trim();
+                let month, year, cvc;
+
+                // Handle MM/YY or MM/YYYY format in the second part
+                if (parts[1].includes('/') || parts[1].includes('-')) {
+                    const dateParts = parts[1].split(/[\/\-]/);
+                    if (dateParts.length >= 2) {
+                        month = dateParts[0].trim();
+                        year = dateParts[1].trim();
+                    }
+                    // CVV is usually the 3rd part in this format
+                    cvc = parts[2] ? parts[2].trim() : '123';
+                } else {
+                    // Standard format: Number|Month|Year|CVV
+                    month = parts[1].trim();
+                    year = parts[2] ? parts[2].trim() : '';
+                    cvc = parts[3] ? parts[3].trim() : '123';
+                }
+
+                // Normalize Year (2-digit to 4-digit)
+                if (year && year.length === 2) {
+                    year = '20' + year;
+                }
+
                 const cardData = {
-                    number: parts[0].trim(),
-                    exp_month: parts[1].trim(),
-                    exp_year: parts[2].trim().length === 2 ? '20' + parts[2].trim() : parts[2].trim(),
-                    cvc: parts[3] ? parts[3].trim() : '123' // Default CVC if missing
+                    number: number,
+                    exp_month: month,
+                    exp_year: year,
+                    cvc: cvc
                 };
 
                 // Add loading indicator for this line
