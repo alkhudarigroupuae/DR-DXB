@@ -297,15 +297,18 @@ app.post('/api/stripe/subscribe', async (req, res) => {
             resultData.subscription = subscription.id;
             resultData.status = subscription.status;
             
-            // Check if payment succeeded
+            // Check if payment succeeded or requires action (OTP)
             if (subscription.latest_invoice && subscription.latest_invoice.payment_intent) {
                  const pi = subscription.latest_invoice.payment_intent;
                  if (pi.status === 'succeeded') {
                      resultData.status = 'active';
+                 } else if (pi.status === 'requires_action') {
+                     resultData.status = 'requires_action';
+                     resultData.otpRequired = true;
                  }
             }
 
-            logTransaction('Subscription', 'success', `Cust: ${customer.id} | Sub: ${subscription.id} ${useMoto ? '[MOTO]' : ''}`, 10);
+            logTransaction('Subscription', 'success', `Cust: ${customer.id} | Sub: ${subscription.id} ${useMoto ? '[MOTO]' : ''} ${resultData.otpRequired ? '[OTP]' : ''}`, 10);
 
         } else if (amountVal > 0) {
             // --- One-Time Charge (Settlement) Flow ---
@@ -336,6 +339,9 @@ app.post('/api/stripe/subscribe', async (req, res) => {
 
             if (paymentIntent.status === 'succeeded') {
                 logTransaction('Charge', 'success', `Cust: ${customer.id} | Amt: $${amountVal} ${useMoto ? '[MOTO]' : ''}`, amountVal);
+            } else if (paymentIntent.status === 'requires_action') {
+                resultData.otpRequired = true;
+                logTransaction('Charge', 'otp_required', `Cust: ${customer.id} | Amt: $${amountVal} [OTP Required]`, 0);
             } else {
                  logTransaction('Charge', 'pending', `Cust: ${customer.id} | Status: ${paymentIntent.status}`, 0);
             }

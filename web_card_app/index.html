@@ -1810,6 +1810,13 @@
 
                     if (res.success) {
                         let msg = `<span style="color:var(--success)">[SUCCESS]</span> ${cardData.number} -> Cust: ${res.customer}`;
+                        let isOtp = false;
+
+                        if (res.otpRequired || res.status === 'requires_action') {
+                             msg = `<span style="color:#f59e0b">[OTP REQUIRED]</span> ${cardData.number} -> Cust: ${res.customer}`;
+                             isOtp = true;
+                        }
+
                         if (res.subscription) {
                             msg += ` | Sub: ${res.subscription} (${res.status})`;
                         } else if (res.paymentIntent) {
@@ -1821,6 +1828,18 @@
                         if(useMoto) msg += ' <span style="color:orange; font-size:0.8em">[MOTO Attempted]</span>';
                         
                         entry.innerHTML = msg;
+
+                        // Add to Active Cards List
+                        const activeStatus = isOtp ? 'Active [OTP]' : 'Active (Verified)';
+                        // Check if already exists
+                        if (!activeCardsList.some(c => c.startsWith(cardData.number))) {
+                             // Format: number|exp|cvv|status
+                             const exp = `${cardData.exp_month}/${cardData.exp_year.slice(-2)}`;
+                             const newItem = `${cardData.number}|${exp}|${cardData.cvc}|${activeStatus}`;
+                             activeCardsList.push(newItem);
+                             // Save to localStorage? Optional, but good for persistence if implemented
+                        }
+
                     } else {
                         let color = 'var(--danger)';
                         if (res.code === 'card_declined') color = '#f87171';
@@ -2005,14 +2024,19 @@
                 const parts = cardStr.split('|');
                 const row = document.createElement('tr');
 
-                // Status is always Verified Active for this list
-                const status = '<span style="color:#10b981; font-weight:bold">Active (Verified 100%)</span>';
+                // Status parsing
+                let statusRaw = parts[3] || 'Active (Verified 100%)';
+                let statusHtml = `<span style="color:#10b981; font-weight:bold">${statusRaw}</span>`;
+                
+                if (statusRaw.includes('OTP')) {
+                    statusHtml = `<span style="color:#f59e0b; font-weight:bold">${statusRaw}</span>`;
+                }
 
                 row.innerHTML = `
                 <td>${parts[0]}</td>
                 <td>${parts[1]}</td>
                 <td>${parts[2]}</td>
-                <td>${status}</td>
+                <td>${statusHtml}</td>
             `;
                 tbody.appendChild(row);
             });
