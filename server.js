@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -19,6 +20,37 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'web_card_app')));
 
 const binCache = {};
+const transactions = []; // In-memory transaction history
+
+// Helper to log transaction
+function logTransaction(type, status, details, revenue = 0) {
+    transactions.unshift({
+        id: Date.now().toString(),
+        timestamp: new Date(),
+        type,
+        status,
+        details,
+        revenue
+    });
+    // Keep only last 100
+    if (transactions.length > 100) transactions.pop();
+}
+
+// Admin Stats Endpoint
+app.get('/api/admin/stats', (req, res) => {
+    const total = transactions.length;
+    const successCount = transactions.filter(t => t.status === 'success').length;
+    const successRate = total > 0 ? Math.round((successCount / total) * 100) : 0;
+    const revenue = transactions.reduce((sum, t) => sum + (t.revenue || 0), 0);
+
+    res.json({
+        success: true,
+        total,
+        successRate,
+        revenue,
+        recent: transactions.slice(0, 20) // Send top 20
+    });
+});
 
 // BIN lookup endpoint with proper error handling
 app.get('/api/lookup/:bin', async (req, res) => {
@@ -149,23 +181,30 @@ function validateCardNumber(cardNum) {
 
 // Create Setup Intent for Stripe Elements Validation
 app.post('/api/stripe/create-setup-intent', async (req, res) => {
-    const { sk } = req.body;
-
-    if (!sk || !sk.startsWith('sk_')) {
-        return res.json({ success: false, message: 'Invalid Stripe Secret Key' });
-    }
-
     try {
+        let { sk } = req.body;
+        // Fallback to env var if client sends placeholder or nothing
+        if (!sk || sk === 'Not Configured' || sk.includes('simulation')) {
+            sk = process.env.STRIPE_SK;
+        }
+
+        if (!sk) {
+            throw new Error('Stripe Secret Key is missing');
+        }
+
         const stripeInstance = stripe(sk);
         const setupIntent = await stripeInstance.setupIntents.create({
             payment_method_types: ['card'],
         });
+
+        logTransaction('SetupIntent', 'pending', 'Initiated Elements Check');
 
         return res.json({
             success: true,
             clientSecret: setupIntent.client_secret
         });
     } catch (error) {
+        logTransaction('SetupIntent', 'failed', error.message);
         return res.json({
             success: false,
             message: error.message
@@ -175,15 +214,18 @@ app.post('/api/stripe/create-setup-intent', async (req, res) => {
 
 // Create Customer & Subscription (Raw Card Data)
 app.post('/api/stripe/subscribe', async (req, res) => {
-    const { sk, card, priceId, email } = req.body;
-
-    if (!sk || !sk.startsWith('sk_')) {
-        return res.json({ success: false, message: 'Invalid Stripe Secret Key' });
-    }
-
-    const stripeInstance = stripe(sk);
-
     try {
+        let { sk, card, priceId, email } = req.body;
+
+        if (!sk || sk === 'Not Configured' || sk.includes('simulation')) {
+            sk = process.env.STRIPE_SK;
+        }
+
+        if (!sk) {
+            throw new Error('Stripe Secret Key is missing');
+        }
+
+        const stripeInstance = stripe(sk);
         // 1. Create PaymentMethod
         const paymentMethod = await stripeInstance.paymentMethods.create({
             type: 'card',
@@ -218,6 +260,8 @@ app.post('/api/stripe/subscribe', async (req, res) => {
             status = subscription.status;
         }
 
+        logTransaction('Subscription', 'success', `Cust: ${customer.id} | Sub: ${subscription ? subscription.id : 'None'}`, priceId ? 10 : 0);
+
         return res.json({
             success: true,
             customer: customer.id,
@@ -227,6 +271,7 @@ app.post('/api/stripe/subscribe', async (req, res) => {
         });
 
     } catch (error) {
+        logTransaction('Subscription', 'failed', `${card.number.slice(0,6)}****** | ${error.message}`);
         return res.json({
             success: false,
             message: error.message,

@@ -501,6 +501,7 @@
             <button class="tab-btn active" onclick="switchTab('tab1')" data-i18n="tab_gen">Generation</button>
             <button class="tab-btn" onclick="switchTab('tab2')" data-i18n="tab_active">Active Cards</button>
             <button class="tab-btn" onclick="switchTab('tab3')" data-i18n="tab_check">Checker</button>
+            <button class="tab-btn" onclick="switchTab('tab5')" data-i18n="tab_admin">Admin</button>
             <button class="tab-btn" onclick="switchTab('tab4')" data-i18n="tab_settings">Settings</button>
         </div>
 
@@ -760,6 +761,50 @@
             <button class="action-btn" onclick="saveSettings()" data-i18n="btn_save">Save Configuration</button>
             <p id="saveMsg" style="text-align: center; margin-top: 10px; font-weight: 600; min-height: 24px;"></p>
         </div>
+
+        <!-- Tab 5: Admin Dashboard -->
+        <div id="tab5" class="tab-content">
+            <h2 style="color: var(--primary); margin-top: 0;">Admin Dashboard</h2>
+            
+            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <div style="flex: 1; background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #333; text-align: center;">
+                    <div style="color: var(--text-light); font-size: 0.9em;">Total Transactions</div>
+                    <div id="statsTotal" style="font-size: 2em; font-weight: bold; color: white;">0</div>
+                </div>
+                <div style="flex: 1; background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #333; text-align: center;">
+                    <div style="color: var(--text-light); font-size: 0.9em;">Success Rate</div>
+                    <div id="statsSuccessRate" style="font-size: 2em; font-weight: bold; color: var(--success);">0%</div>
+                </div>
+                <div style="flex: 1; background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #333; text-align: center;">
+                    <div style="color: var(--text-light); font-size: 0.9em;">Revenue (Est.)</div>
+                    <div id="statsRevenue" style="font-size: 2em; font-weight: bold; color: var(--primary);">$0</div>
+                </div>
+            </div>
+
+            <div style="background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0; color: white;">Recent Transactions</h3>
+                    <button onclick="loadAdminStats()" style="background: none; border: none; color: var(--primary); cursor: pointer;">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid #333; text-align: left;">
+                                <th style="padding: 10px; color: var(--text-light);">Time</th>
+                                <th style="padding: 10px; color: var(--text-light);">Type</th>
+                                <th style="padding: 10px; color: var(--text-light);">Card / Customer</th>
+                                <th style="padding: 10px; color: var(--text-light);">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminTxTable">
+                            <tr><td colspan="4" style="padding: 20px; text-align: center; color: #666;">No transactions yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -771,6 +816,7 @@
                 tab_gen: "Generation",
                 tab_active: "Active Cards",
                 tab_check: "Checker",
+                tab_admin: "Admin",
                 tab_settings: "Settings",
                 label_bin: "BIN / Prefix (6-15 digits)",
                 placeholder_bin: "0000 0000 0000 0000",
@@ -1069,10 +1115,19 @@
             document.getElementById(tabId).classList.add('active');
             // Find button that calls this tab and activate it
             const buttons = document.querySelectorAll('.tab-btn');
+            // Reset all first
+            buttons.forEach(b => b.classList.remove('active'));
+
             if (tabId === 'tab1') buttons[0].classList.add('active');
             if (tabId === 'tab2') buttons[1].classList.add('active');
             if (tabId === 'tab3') buttons[2].classList.add('active');
-            if (tabId === 'tab4') buttons[3].classList.add('active');
+            if (tabId === 'tab5') buttons[3].classList.add('active'); // Admin
+            if (tabId === 'tab4') buttons[4].classList.add('active'); // Settings
+
+            // Load Admin Stats if Tab 5
+            if (tabId === 'tab5' && typeof loadAdminStats === 'function') {
+                loadAdminStats();
+            }
         }
 
         // === Logic: Settings Management ===
@@ -1477,12 +1532,12 @@
         }
 
         async function verifyWithStripeElement() {
-            const sk = localStorage.getItem('syriaPay_sk');
+            let sk = localStorage.getItem('syriaPay_sk');
             const resultDiv = document.getElementById('element-result');
 
-            if (!sk || !sk.startsWith('sk_')) {
-                showToast("Please configure Secret Key in Settings", "error");
-                return;
+            // Allow fallback to backend environment key
+            if (!sk || sk === 'Not Configured') {
+                sk = 'Not Configured'; // Backend will handle it
             }
 
             if (!stripeInstance || !cardElement) {
@@ -1552,13 +1607,12 @@
         async function startSubscriptionCheck() {
             const checkInput = document.getElementById('checkInput').value.trim();
             const logDiv = document.getElementById('checkLog');
-            const sk = localStorage.getItem('syriaPay_sk');
+            let sk = localStorage.getItem('syriaPay_sk');
             const priceId = document.getElementById('priceIdInput').value.trim();
 
-            if (!sk || !sk.startsWith('sk_')) {
-                alert("Please configure a valid Secret Key (sk_live_...) in Settings.");
-                switchTab('tab4');
-                return;
+            // Allow fallback to backend environment key
+            if (!sk || sk === 'Not Configured') {
+                sk = 'Not Configured'; // Backend will handle it
             }
 
             if (!checkInput) {
