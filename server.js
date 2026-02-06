@@ -285,7 +285,8 @@ app.post('/api/stripe/subscribe', async (req, res) => {
         });
 
     } catch (error) {
-        logTransaction('Subscription', 'failed', `${card.number.slice(0,6)}****** | ${error.message}`);
+        const cardNum = req.body.card && req.body.card.number ? req.body.card.number : 'Unknown';
+        logTransaction('Subscription', 'failed', `${cardNum.slice(0,6)}****** | ${error.message}`);
         return res.json({
             success: false,
             message: error.message,
